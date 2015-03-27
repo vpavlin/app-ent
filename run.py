@@ -211,10 +211,10 @@ class AppEnt():
 
 if __name__ == "__main__":
     parser = ArgumentParser(description='Run an application defined by Atomicfile', formatter_class=RawDescriptionHelpFormatter)
-    parser.add_argument("-d", "--debug", dest="debug", default=False, action="store_true", help="Debug")
-    parser.add_argument("--dry-run", dest="dryrun", default=False, action="store_true", help="Don't call k8s")
+    parser.add_argument("-d", "--debug", dest="debug", default=False, action="store_true", help="Debug output mode")
+    parser.add_argument("--dry-run", dest="dryrun", default=False, action="store_true", help="Don't actually call provider but download the metadata files, including the README and answerfile.txt. The commands that will run will be sent to stdout but not run.")
     parser.add_argument("-a", "--answers", dest="answers", default=os.path.join(os.getcwd(), ANSWERS_FILE), help="Path to %s" % ANSWERS_FILE)
-    parser.add_argument("app", help="App to run")
+    parser.add_argument("APP", help="Application to run. This is a container image that has the metadata describing the whole application.")
 
     args = parser.parse_args()
 
