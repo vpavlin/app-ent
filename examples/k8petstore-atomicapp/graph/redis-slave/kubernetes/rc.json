@@ -1,0 +1,38 @@
+{
+    "apiVersion": "v1beta1",
+    "desiredState": {
+        "podTemplate": {
+            "desiredState": {
+                "manifest": {
+                    "containers": [
+                        {
+                            "image": "jayunit100/k8-petstore-redis-slave:$VERSION",
+                            "name": "slave",
+                            "ports": [
+                                {
+                                    "containerPort": 6379,
+                                    "hostPort": 6380
+                                }
+                            ]
+                        }
+                    ],
+                    "id": "redissc",
+                    "version": "v1beta1"
+                }
+            },
+            "labels": {
+                "name": "redisslave",
+                "uses": "redis-master"
+            }
+        },
+        "replicaSelector": {
+            "name": "redisslave"
+        },
+        "replicas": "$SLAVE"
+    },
+    "id": "redissc",
+    "kind": "ReplicationController",
+    "labels": {
+        "name": "redisslave"
+    }
+}

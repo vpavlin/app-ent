@@ -1,0 +1,13 @@
+{
+    "specversion": "v1-alpha", 
+    "name": "k8petstore",
+    "id": "k8petstore-atomic",
+    "appversion": "0.0.2",
+    "description": "This is CSS on top of Wordpress",
+    "graph": [
+        "redis-master",
+        "redis-slave",
+        "frontend",
+        "bps-load-generator"
+    ]
+}
