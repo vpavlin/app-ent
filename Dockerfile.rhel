@@ -4,7 +4,14 @@ MAINTAINER Vaclav Pavlin <vpavlin@redhat.com>
 
 RUN echo -e "[epel]\nname=epel\nenabled=1\nbaseurl=https://dl.fedoraproject.org/pub/epel/7/x86_64/\ngpgcheck=0" > /etc/yum.repos.d/epel.repo
 
-RUN yum --enablerepo=rhel-7-server-extras-rpms --disablerepo=rhel-7-server-rt-htb-rpms --disablerepo=rhel-sap-for-rhel-7-server-rpms --disablerepo=rhel-rs-for-rhel-7-server-rpms --disablerepo=rhel-rs-for-rhel-7-server-htb-rpms --disablerepo=rhel-rs-for-rhel-7-server-eus-rpms --disablerepo=rhel-lb-for-rhel-7-server-htb-rpms --disablerepo=rhel-ha-for-rhel-7-server-rpms --disablerepo=rhel-ha-for-rhel-7-server-htb-rpms --disablerepo=rhel-ha-for-rhel-7-server-eus-rpms --disablerepo=rhel-7-server-rt-rpms -y install python-pip docker
+RUN yum install -y yum-utils && \
+    yum-config-manager --disable \* && \
+    yum-config-manager --enable rhel-7-server-rpms && \
+    yum-config-manager --enable rhel-7-server-extras-rpms && \
+    yum-config-manager --enable rhel-7-server-optional-rpms && \
+    yum-config-manager --enable rhel-server-rhscl-7-rpms && \
+    yum-config-manager --enable epel && \
+    yum install -y --setopt=tsflags=nodocs python-pip docker
 RUN pip install yapsy
 
 ADD run.py /opt/atomicapp/run.py
