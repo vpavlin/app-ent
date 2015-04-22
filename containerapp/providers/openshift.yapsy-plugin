@@ -1,0 +1,9 @@
+[Core]
+Name = Openshift Provider
+Module = openshift
+
+[Documentation]
+Author = Vaclav Pavlin
+Version = 0.1
+Website = https://github.com/vpavlin/atomicapp-run
+Description = TBD

@@ -1,0 +1,1 @@
+docker run -d -v /sys/fs/cgroup:/sys/fs/cgroup -v /var/log/journal:/var/log/journal --name $name $image

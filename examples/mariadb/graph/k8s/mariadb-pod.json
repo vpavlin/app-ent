@@ -1,0 +1,33 @@
+{
+  "apiVersion": "v1beta1",
+  "id": "mariadb",
+  "desiredState": {
+    "manifest": {
+      "version": "v1beta1",
+      "id": "mariadb",
+      "containers": [
+        {
+          "name": "mysql",
+          "image": "mariadb",
+          "env": [
+            {
+              "name": "MYSQL_ROOT_PASSWORD",
+              "value": "yourpassword"
+            }
+          ],
+          "cpu": 100,
+          "ports": [
+            {
+              "containerPort": 3306
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "labels": {
+    "name": "mariadb"
+  },
+  "kind": "Pod"
+}
+

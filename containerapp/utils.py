@@ -7,7 +7,7 @@ import tempfile
 
 import logging
 
-from constants import PARAMS_FILE, GRAPH_DIR, GLOBAL_CONF, APP_ENT_PATH, ATOMIC_FILE
+from constants import PARAMS_FILE, GRAPH_DIR, GLOBAL_CONF, APP_ENT_PATH, MAIN_FILE, EXTERNAL_APP_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -28,16 +28,19 @@ class Utils(object):
 
     def loadApp(self, app_path):
         self.params.app_path = app_path
-        if not os.path.basename(app_path) == ATOMIC_FILE:
-            app_path = os.path.join(app_path, ATOMIC_FILE)
-        atomic_data = self.params.loadAtomicfile(app_path)
-        app = os.environ["IMAGE"] if "IMAGE" in os.environ else atomic_data["id"]
+        if not os.path.basename(app_path) == MAIN_FILE:
+            app_path = os.path.join(app_path, MAIN_FILE)
+        mainfile_data = self.params.loadMainfile(app_path)
+        app = os.environ["IMAGE"] if "IMAGE" in os.environ else mainfile_data["id"]
         logger.debug("Setting path to %s" % self.params.app_path)
 
         return app
 
     def sanitizeName(self, app):
         return app.replace("/", "-")
+
+    def getExternalAppDir(self, component):
+        return os.path.join(self.params.target_path, EXTERNAL_APP_DIR, self.getComponentName(component))
 
     def getComponentDir(self, component):
         return os.path.join(self.params.target_path, GRAPH_DIR, self.getComponentName(component))
@@ -87,7 +90,64 @@ class Utils(object):
 
     def pullApp(self, image):
         image = self.getImageURI(image)
+        if not self.params.update:
+            check_cmd = ["docker", "images", "-q", image]
+            id = subprocess.check_output(check_cmd)
+            if len(id) != 0:
+                logger.debug("Image %s already present with id %s. Use --update to re-pull." % (image, id.strip()))
+                return
 
         pull = ["docker", "pull", image]
         if subprocess.call(pull) != 0:
             raise Exception("Couldn't pull %s" % image)
+
+    def isExternal(self, graph_item):
+        logger.debug(graph_item)
+        if "artifacts" in graph_item:
+            return False
+
+        if not "source" in graph_item:
+            return False
+
+        return True
+
+    def getSourceImage(self, graph_item):
+        if not "source" in graph_item:
+            return None
+
+        if graph_item["source"].startswith("docker://"):
+            return graph_item["source"][len("docker://"):]
+
+        return None
+
+    @staticmethod
+    def sanitizePath(path):
+        if path.startswith("file://"):
+            return path[7:]
+
+    def getArtifacts(self, component):
+        if component in self.params.mainfile_data["graph"]:
+            if "artifacts" in self.params.mainfile_data["graph"][component]:
+                return self.params.mainfile_data["graph"][component]["artifacts"]
+
+        return None
+
+    def checkArtifacts(self):
+        for component in self.params.mainfile_data["graph"].keys():
+            artifacts = self.getArtifacts(component)
+            if not artifacts:
+                logger.debug("No artifacts for %s" % component)
+                continue
+
+            for provider, artifact_list in artifacts.iteritems():
+                logger.debug("Provider: %s" % provider)
+                for artifact in artifact_list:
+                    path = os.path.join(self.params.target_path, self.sanitizePath(artifact))
+                    if os.path.isfile(path):
+                        logger.debug("Artifact %s: OK" % artifact)
+                    else:
+                        raise Exception("Missing artifact %s (%s)" % (artifact, path))
+
+            logger.info("Artifacts for %s present for these providers: %s" % (component, ", ".join(artifacts.keys())))
+
+

@@ -1,0 +1,33 @@
+---
+specversion: 0.0.1-alpha
+# 0.0.1-alpha requires:
+# - Docker 1.6 or later
+# - OpenShift3 0.4 or later
+# - Atomic Host 7.1.1 or later
+
+specversion: 0.0.1-alpha
+id: wordpress-app
+
+metadata:
+  name: "Wordpress App"
+  appversion": "0.0.1"
+  description": "Simple Wordpress App"
+graph:
+  mariadb-app:
+    source: docker://vpavlin/mariadb-app-0.0.1  #FIXME
+  wordpress-app:
+    params:
+      name:
+        description: "Name given to a container when it's run"
+        default: wordpress
+      image: 
+        description: "The image which containing the Wordpress itself"
+        default: vpavlin/wordpress
+    artifacts:
+      docker:
+        - file://graph/docker/label_run
+      openshift:
+        - file://graph/kubernetes/wordpress-pod.json
+        - file://graph/kubernetes/wordpress-service.json
+
+        

@@ -1,0 +1,30 @@
+---
+specversion: 0.0.1-alpha
+# 0.0.1-alpha requires:
+# - Docker 1.6 or later
+# - OpenShift3 0.4 or later
+# - Atomic Host 7.1.1 or later
+
+id: mariadb-app
+
+metadata:
+  name: "Mariadb App"
+  appversion": "0.0.1"
+  description": "Nulecule for deploying mariadb"
+graph:
+  mariadb-app:
+    params:
+      name:
+        description: "Name given to a container when it's run"
+        default: mariadb
+      image: 
+        description: "The image which containing the Wordpress itself"
+        default: vpavlin/mariadb
+    artifacts:
+      docker:
+        - file://graph/docker/label_run
+      openshift:
+        - file://graph/k8s/mariadb-pod.json
+        - file://graph/k8s/mariadb-service.json
+
+        
