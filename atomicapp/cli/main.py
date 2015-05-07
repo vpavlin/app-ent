@@ -1,17 +1,17 @@
 #!/usr/bin/python
 
-from containerapp.run import Run
-from containerapp.install import Install
-from containerapp.create import Create
-from containerapp import params
+from atomicapp.run import Run
+from atomicapp.install import Install
+from atomicapp.create import Create
+from atomicapp import params
 import os, sys, json
 from argparse import ArgumentParser
 from argparse import RawDescriptionHelpFormatter
 import logging
 import anymarkup #FIXME
 
-from containerapp import set_logging
-from containerapp.constants import ANSWERS_FILE, MAIN_FILE
+from atomicapp import set_logging
+from atomicapp.constants import ANSWERS_FILE, MAIN_FILE
 
 def cli_install(args):
     install = Install(**vars(args))

@@ -1,20 +1,14 @@
-from containerapp.plugin import Provider
+from atomicapp.plugin import Provider
 import os, subprocess
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 class DockerProvider(Provider):
-    config = None
-    path = None
-    artifacts = None
-    dryrun = None
-    logger = None
     key = "docker"
 
-    def init(self, config, artifacts, path, dryrun, logger):
-        self.confif = config
-        self.artifacts = artifacts
-        self.path = path
-        self.dryrun = dryrun
-        self.logger = logger.getChild("docker")
+    def init(self):
         
         cmd_check = ["docker", "version"]
         docker_version = subprocess.check_output(cmd_check).split("\n")
@@ -40,6 +34,6 @@ class DockerProvider(Provider):
             cmd = label_run.split(" ")
 
             if self.dryrun:
-                self.logger.info("Pretending to run:\n\t %s" % " ".join(cmd))
+                logger.info("Pretending to run:\n\t %s" % " ".join(cmd))
             else:
                 subprocess.call(cmd)

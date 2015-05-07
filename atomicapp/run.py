@@ -119,12 +119,13 @@ class Run():
 
             artifact_provider_list.append(artifact_path)
 
-        provider = self.plugin.getProvider(self.params.provider)
+        provider_class = self.plugin.getProvider(self.params.provider)
+        provider = provider_class(self.params.getValues(component), artifact_provider_list, dst_dir, self.dryrun)
         if provider:
             logger.info("Using provider %s for component %s" % (self.params.provider, component))
         else:
             raise Exception("Something is broken - couldn't get the provider")
-        provider.init(self.params.getValues(component), artifact_provider_list, dst_dir, self.dryrun, logger)
+        provider.init()
         provider.deploy()
 
     def run(self):

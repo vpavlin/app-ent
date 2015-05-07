@@ -1,10 +1,12 @@
-from containerapp.plugin import Provider
+from atomicapp.plugin import Provider
 
 from collections import OrderedDict
 
 import os, subprocess
 import anymarkup
 import logging
+
+logger = logging.getLogger(__name__)
 
 class OpenshiftProvider(Provider):
     key = "openshift"
@@ -13,14 +15,6 @@ class OpenshiftProvider(Provider):
     path = None
     artifacts = None
     dryrun = None
-    logger = None
-    def init(self, config, artifacts, path, dryrun, logger):
-        self.config = config
-        self.artifacts = artifacts
-        self.path = path
-        self.dryrun = dryrun
-        self.logger = logger.getChild("openshift")
-        logger.debug(config)
 
     def _callK8s(self, path):
         cmd = ["kubectl", "create", "-f", path, "--api-version=v1beta1"]
@@ -37,6 +31,6 @@ class OpenshiftProvider(Provider):
     def deploy(self):
         for artifact in self.artifacts:
             artifact_path = os.path.join(self.path, artifact)
-            self.logger.debug("Do something about %s" % artifact_path)
+            logger.debug("Do something about %s" % artifact_path)
 
-        self.logger.info("Files %s merged into imaginary template file and pushed to Openshift..." % ", ".join(self.artifacts))
+        logger.info("Files %s merged into imaginary template file and pushed to Openshift..." % ", ".join(self.artifacts))

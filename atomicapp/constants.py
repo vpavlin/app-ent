@@ -11,3 +11,4 @@ PARAMS_FILE="params.conf"
 ANSWERS_FILE="answers.conf"
 
 DEFAULT_PROVIDER="kubernetes"
+DEFAULT_ANSWERS={"general":{}}

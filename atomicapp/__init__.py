@@ -1,6 +1,6 @@
 import logging
 
-def set_logging(name="containerapp", level=logging.DEBUG):
+def set_logging(name="atomicapp", level=logging.DEBUG):
     # create logger
     logger = logging.getLogger(name)
     logger.handlers = []

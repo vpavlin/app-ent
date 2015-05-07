@@ -6,7 +6,7 @@ RUN echo -e "[epel]\nname=epel\nenabled=1\nbaseurl=https://dl.fedoraproject.org/
 
 RUN yum install -y --setopt=tsflags=nodocs python-pip docker
 
-ADD containerapp/ /opt/atomicapp/containerapp/
+ADD atomicapp/ /opt/atomicapp/atomicapp/
 ADD setup.py /opt/atomicapp/
 ADD requirements.txt /opt/atomicapp/
 
@@ -14,10 +14,11 @@ WORKDIR /opt/atomicapp
 
 RUN python setup.py install
 
-VOLUME /answers.conf
+WORKDIR /application-entity
+VOLUME /application-entity/answers.conf
 
-LABEL RUN docker run -it --privileged -v ${DATADIR}:/atomicapp -v /run:/run -v /:/host -v ${CONFDIR}/answers.conf:/application-entity/answers.conf --name NAME -e NAME=NAME -e IMAGE=IMAGE IMAGE containerapp -v run /atomicapp
-LABEL INSTALL docker run --rm -it --privileged -v /run:/run -v ${DATADIR}:/atomicapp -v /:/host -v ${CONFDIR}/answers.conf:/application-entity/answers.conf -e IMAGE=IMAGE -e NAME=NAME --name NAME IMAGE containerapp -v install --update --path /atomicapp /application-entity
+LABEL RUN docker run -it --rm --privileged --net=host -v ${PWD}:/atomicapp -v /run:/run -v /:/host -v ${PWD}/answers.conf:/application-entity/answers.conf --name NAME -e NAME=NAME -e IMAGE=IMAGE IMAGE atomicapp -v run /atomicapp
+LABEL INSTALL docker run --rm -it --privileged -v /run:/run -v ${PWD}:/atomicapp -v /:/host -v ${PWD}/answers.conf:/application-entity/answers.conf -e IMAGE=IMAGE -e NAME=NAME --name NAME IMAGE atomicapp -v install --path /atomicapp /application-entity
 
-CMD containerapp -a /answers.conf
+CMD  atomicapp -h
 

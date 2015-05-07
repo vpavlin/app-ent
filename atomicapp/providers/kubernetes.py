@@ -1,23 +1,23 @@
-from containerapp.plugin import Provider
+from atomicapp.plugin import Provider
 
 from collections import OrderedDict
 import os, json, subprocess
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 class KubernetesProvider(Provider):
     key = "kubernetes"
 
-    config = None
-    component_dir = None
-    debug = None
-    dryrun = None
-    def init(self, config, component_dir, debug, dryrun):
-        self.confif = config
-        self.component_dir = component_dir
-        self.debug = debug
-        self.dryrun = dryrun
+    kubectl = "kubectl"
+    def init(self):
+        if self.container:
+            self.kubectl = "/host/usr/bin/kubectl"
+            os.symlink("/host/etc/kubernetes", "/etc/kubernetes")
 
     def _callK8s(self, path):
-        cmd = ["kubectl", "create", "-f", path, "--api-version=v1beta1"]
+        cmd = [self.kubectl, "create", "-f", path]
         print("Calling: %s" % " ".join(cmd))
 
         if self.dryrun:
@@ -30,18 +30,18 @@ class KubernetesProvider(Provider):
 
     def deploy(self):
         kube_order = OrderedDict([("service", None), ("rc", None), ("pod", None)]) #FIXME
-        for artifact in os.listdir(self.component_dir):
+        for artifact in self.artifacts:
             data = None
-            with open(os.path.join(self.component_dir, artifact), "r") as fp:
+            with open(os.path.join(self.path, artifact), "r") as fp:
                 data = json.load(fp)
             if "kind" in data:
                 kube_order[data["kind"].lower()] = artifact
             else:
-                print("Malformed kube file")
+                logger.info("Malformed kube file")
 
         for artifact in kube_order:
             if not kube_order[artifact]:
                 continue
         
-            k8s_file = os.path.join(self.component_dir, kube_order[artifact])
+            k8s_file = os.path.join(self.path, kube_order[artifact])
             self._callK8s(k8s_file)

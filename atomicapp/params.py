@@ -8,7 +8,7 @@ import re
 import pprint
 from collections import OrderedDict
 
-from constants import MAIN_FILE, GLOBAL_CONF, DEFAULT_PROVIDER, PARAMS_KEY
+from constants import MAIN_FILE, GLOBAL_CONF, DEFAULT_PROVIDER, PARAMS_KEY, ANSWERS_FILE, DEFAULT_ANSWERS
 
 import utils
 
@@ -100,9 +100,18 @@ class Params(object):
             logger.debug("Data given %s" % data)
         elif os.path.exists(data):
             logger.debug("Path to answers file given, loading %s" % data)
-            data = anymarkup.parse_file(data)
+            if os.path.isdir(data):
+                if os.path.isfile(os.path.join(data, ANSWERS_FILE)):
+                    data = os.path.isfile(os.path.join(data, ANSWERS_FILE))
+                else:
+                    logger.warning("No answers file found.")
+                    data = DEFAULT_ANSWERS
+
+            if os.path.isfile(data):
+                data = anymarkup.parse_file(data)
         else:
-            raise Exception("Answers (%s) are nor file path neither dictionary" % data)
+            logger.warning("No answers file found.")
+            data = DEFAULT_ANSWERS
 
         if self.answers_data:
             self.answers_data = self._update(self.answers_data, data)

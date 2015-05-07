@@ -18,7 +18,7 @@ def _install_requirements():
     requirements = _get_requirements('requirements.txt')
     return requirements
 
-setup(name='containerapp',
+setup(name='atomicapp',
       version='0.1',
       description='A tool to install and run Nulecule apps',
       author='Vaclav Pavlin',
@@ -26,7 +26,7 @@ setup(name='containerapp',
       url='https://github.com/vpavlin/atomicapp-run',
       license="MIT",
       entry_points={
-          'console_scripts': ['containerapp=containerapp.cli.main:main'],
+          'console_scripts': ['atomicapp=atomicapp.cli.main:main'],
       },
       packages=find_packages(),
       install_requires=_install_requirements(),
