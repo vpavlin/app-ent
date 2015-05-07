@@ -2,22 +2,20 @@ FROM fedora
 MAINTAINER langdon <langdon@fedoraproject.org>
 #Derived from Vaclav Pavlin <vpavlin@redhat.com>; https://github.com/vpavlin/atomicapp-run
 
-RUN yum -y update && yum clean all
-RUN yum -y install python python-pip docker && yum clean all
+RUN yum clean all && yum -y update
+RUN yum -y install python python-pip docker-io kubernetes
+RUN yum clean all
 
-ADD requirements.txt /opt/atomicapp/
-ADD setup.py /opt/atomicapp/
-ADD containerapp/ /opt/atomicapp/containerapp/
-
-WORKDIR /opt/atomicapp
-RUN python setup.py install
-
+COPY . /opt/atomicapp/
+WORKDIR /opt/atomicapp/
+RUN chmod u+x /opt/atomicapp/setup.py
+RUN ./setup.py install
 
 WORKDIR /application-entity
-VOLUME /application-entity/answers.conf
+VOLUME /application-entity
 
-LABEL RUN docker run -it --privileged -v ${PWD}:/atomicapp -v /run:/run -v /:/host -v ${PWD}/answers.conf:/application-entity/answers.conf --name NAME -e NAME=NAME -e IMAGE=IMAGE IMAGE containerapp -v run /atomicapp
-LABEL INSTALL docker run --rm -it --privileged -v /run:/run -v ${PWD}:/atomicapp -v /:/host -v ${PWD}/answers.conf:/application-entity/answers.conf -e IMAGE=IMAGE -e NAME=NAME --name NAME IMAGE containerapp -v install --path /atomicapp /application-entity
+LABEL RUN docker run -it --privileged -v ${PWD}:/atomicapp -v /run:/run -v /:/host -v ${PWD}:/application-entity --name NAME -e NAME=NAME -e IMAGE=IMAGE IMAGE containerapp -v run /atomicapp
+LABEL INSTALL docker run --rm -it --privileged -v /run:/run -v ${PWD}:/atomicapp -v /:/host -v ${PWD}:/application-entity -e IMAGE=IMAGE -e NAME=NAME --name NAME IMAGE containerapp -v install --path /atomicapp /application-entity
 
-CMD  containerapp -h
-
+#CMD  containerapp -h
+ENTRYPOINT ["/usr/bin/containerapp"]
