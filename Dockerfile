@@ -21,5 +21,5 @@ VOLUME /application-entity
 LABEL RUN docker run -it --rm --privileged --net=host -v ${PWD}:/atomicapp -v /run:/run  --name NAME -e NAME=NAME -e IMAGE=IMAGE IMAGE -v run /atomicapp
 LABEL INSTALL docker run --rm -it --privileged -v /run:/run -v ${PWD}:/atomicapp -v /:/host -e IMAGE=IMAGE -e NAME=NAME --name NAME IMAGE -v install --path /atomicapp /application-entity
 
-ENTRYPOINT atomicapp -h
+ENTRYPOINT ["/usr/bin/atomicapp"]
 
