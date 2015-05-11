@@ -11,7 +11,7 @@ import logging
 import anymarkup #FIXME
 
 from atomicapp import set_logging
-from atomicapp.constants import ANSWERS_FILE, MAIN_FILE
+from atomicapp.constants import ANSWERS_FILE, MAIN_FILE, __ATOMICAPPVERSION__, __NULECULESPECVERSION__
 
 def cli_install(args):
     install = Install(**vars(args))
@@ -33,10 +33,11 @@ def cli_run(args):
 
 class CLI():
     def __init__(self):
-        self.parser = ArgumentParser(description='TBD', formatter_class=RawDescriptionHelpFormatter)
+        self.parser = ArgumentParser(prog='atomicapp', description='This will install and run an atomicapp, a containerized application conforming to the Nulecule Specification', formatter_class=RawDescriptionHelpFormatter)
 
     def set_arguments(self):
 
+        self.parser.add_argument("-V", "--version", action='version', version='atomicapp %s, Nulecule Specification %s' % (__ATOMICAPPVERSION__, __NULECULESPECVERSION__), help="show the version and exit.") # TODO refactor program name and version to some globals
         self.parser.add_argument("-v", "--verbose", dest="verbose", default=False, action="store_true", help="Verbose output mode.")
         self.parser.add_argument("-q", "--quiet", dest="quiet", default=False, action="store_true", help="Quiet output mode.")
 
