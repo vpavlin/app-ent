@@ -2,7 +2,7 @@ FROM fedora
 MAINTAINER langdon <langdon@fedoraproject.org>
 #Derived from Vaclav Pavlin <vpavlin@redhat.com>; https://github.com/vpavlin/atomicapp-run
 
-RUN yum -y install python python-pip docker && \
+RUN yum install -y python-pip docker python-devel gcc libyaml-devel && \
     yum update -y && \
     yum clean all
 
