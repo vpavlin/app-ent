@@ -13,10 +13,10 @@ if [ -z "$USERNAME" ]; then
 fi
 
 echo docker build $USERNAME/$IMAGE_NAME
-docker build --rm --tag $USERNAME/$IMAGE_NAME --file Dockerfile.${WHAT} .
+if [ "$WHAT" == "centos" ]; then
+    docker build --rm --tag $USERNAME/$IMAGE_NAME --file Dockerfile .
+else
+    docker build --rm --tag $USERNAME/$IMAGE_NAME --file Dockerfile.${WHAT} .
+fi
 
-#doesn't really make sense to run it
-#test
-#docker run -it --privileged -v /run:/run -v /:/host -v `pwd`:/application-entity $USERNAME/atomicapp-run /bin/bash
-#run
-#docker run -dt --privileged -v /run:/run -v /:/host -v `pwd`:/application-entity $USERNAME/atomicapp-run
+#end.
