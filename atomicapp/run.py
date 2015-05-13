@@ -146,7 +146,6 @@ class Run():
 
         self._dispatchGraph()
 
-
 #Think about this a bit more probably - it's (re)written for all components...
         if self.answers_output:
             self.params.writeAnswers(self.answers_output)

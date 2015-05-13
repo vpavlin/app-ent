@@ -7,6 +7,7 @@ import collections
 import re
 import pprint
 from collections import OrderedDict
+import copy
 
 from constants import MAIN_FILE, GLOBAL_CONF, DEFAULT_PROVIDER, PARAMS_KEY, ANSWERS_FILE, DEFAULT_ANSWERS, ANSWERS_FILE_SAMPLE
 
@@ -127,7 +128,7 @@ class Params(object):
             self.write_sample_answers = True
 
         if  self.write_sample_answers:
-            data = DEFAULT_ANSWERS
+            data = copy.deepcopy(DEFAULT_ANSWERS)
 
         if self.answers_data:
             self.answers_data = self._update(self.answers_data, data)
