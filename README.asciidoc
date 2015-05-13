@@ -56,3 +56,12 @@ Providers represent various deployment targets. They can be added by placing a `
 
 As of Version 0.0.1 Atomicapp uses https://docs.python.org/2/[Python
 2.7.5] and https://github.com/bkabrda/anymarkup[Anymarkup].
+
+= Copyright
+
+Copyright (C) 2015 Red Hat Inc.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License, version
+3, as published by the Free Software Foundation. For details see
+GNU-AGPL-3.0.txt 
