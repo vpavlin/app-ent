@@ -1,0 +1,67 @@
+= Atomicapp
+
+Atomicapp is a reference implementation of the Nulecule Specification. It can be used to bootstrap container application and to install and run them.
+
+== Introduction
+
+Please take a look at the https://gitbub.com/projectatomic/nulecule[Nulecule Specification]. If you are interested in taking a look at some well documented examples, feel free to browse thru https://github.com/projectatomic/atomicapp-examples/[Atomicapp].
+
+== How To
+
+First of all, clone the github repository: `git clone https://github.com/projectatomic/atomicapp`.
+
+=== Install this project
+Simply run
+
+```
+python setup.py install
+```
+
+If you want to do some changes to the code, I suggest to do:
+
+```
+cd atomicapp
+export PYTHONPATH=`pwd`:$PYTHONPATH
+alias atomicapp="`pwd`/atomicapp/cli/main.py"
+```
+
+=== Build
+```
+atomicapp [--dry-run] build [TAG]
+```
+
+Calls Docker build to package up the application and tags the resulting image.
+
+=== Install and Run
+```
+atomicapp [--dry-run] [-a answers.conf] install|run [--recursive] [--update] [--destination DST_PATH] APP|PATH
+```
+
+Pulls the application and it's dependencies. If the last argument is
+existing path, it looks for `Nulecule` file there instead of pulling anything.
+
+* `--recursive yes|no` Pull whole dependency tree
+* `--update` Overwrite any existing files
+* `--destination DST_PATH` Unpack the application into given directory instead of current directory
+* `APP` Name of the image containing the application (f.e. `vpavlin/wp-app`)
+* `PATH` Path to a directory with installed (i.e. result of `atomicapp install ...`) app
+
+Action `run` performs `install` prior it's own tasks are executed if `APP` is given. When `run` is selected, providers' code is invoked and containers are deployed.
+
+== Providers
+
+Providers represent various deployment targets. They can be added by placing a `provider_name.py` file implementing interface explained in providers/README.md[Providers] into `providers/` directory.
+
+== Dependencies
+
+As of Version 0.0.1 Atomicapp uses https://docs.python.org/2/[Python
+2.7.5] and https://github.com/bkabrda/anymarkup[Anymarkup].
+
+= Copyright
+
+Copyright (C) 2015 Red Hat Inc.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License, version
+3, as published by the Free Software Foundation. For details see
+GNU-AGPL-3.0.txt 
