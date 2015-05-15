@@ -32,6 +32,9 @@ class Provider():
     def deploy(self):
         raise NotImplemented()
 
+    def undeploy(self):
+        logger.warning("Call to undeploy for provider %s failed - this action is not implemented" % self.key)
+
     def __str__(self):
         return "%s" % self.key
 

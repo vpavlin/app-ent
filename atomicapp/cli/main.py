@@ -31,6 +31,10 @@ def cli_run(args):
     ae = Run(**vars(args))
     ae.run()
 
+def cli_stop(args):
+    stop = Run(stop = True, **vars(args))
+    stop.run()
+
 class CLI():
     def __init__(self):
         self.parser = ArgumentParser(prog='atomicapp', description='This will install and run an atomicapp, a containerized application conforming to the Nulecule Specification', formatter_class=RawDescriptionHelpFormatter)
@@ -42,6 +46,7 @@ class CLI():
         self.parser.add_argument("-q", "--quiet", dest="quiet", default=False, action="store_true", help="Quiet output mode.")
 
         self.parser.add_argument("--dry-run", dest="dryrun", default=False, action="store_true", help="Don't actually call provider. The commands that should be run will be sent to stdout but not run.")
+        self.parser.add_argument("-a", "--answers", dest="answers", default=os.path.join(os.getcwd(), ANSWERS_FILE), help="Path to %s" % ANSWERS_FILE)
 
         subparsers = self.parser.add_subparsers(dest="action")
 
@@ -52,7 +57,6 @@ class CLI():
 
 
         parser_run = subparsers.add_parser("run")
-        self.parser.add_argument("-a", "--answers", dest="answers", default=os.path.join(os.getcwd(), ANSWERS_FILE), help="Path to %s" % ANSWERS_FILE)
         parser_run.add_argument("--write-answers", dest="answers_output", help="A file which will contain anwsers provided in interactive mode")
         parser_run.add_argument("--ask", default=False, action="store_true", help="Ask for params even if the defaul value is provided")
         parser_run.add_argument("APP", help="Path to the directory where the image is installed.")
@@ -65,6 +69,10 @@ class CLI():
         parser_install.add_argument("--destination", dest="target_path", default=None, help="Destination directory for install")
         parser_install.add_argument("APP",  help="Application to run. This is a container image or a path that contains the metadata describing the whole application.")
         parser_install.set_defaults(func=cli_install)
+
+        parser_stop = subparsers.add_parser("stop")
+        parser_stop.add_argument("APP", help="Path to the directory where the atomicapp is installed or an image containing atomicapp which should be stopped.")
+        parser_stop.set_defaults(func=cli_stop)
 
         parser_build = subparsers.add_parser("build")
         parser_build.add_argument("TAG", nargs="?", default=None, help="Name of the image containing your app")
