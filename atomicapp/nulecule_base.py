@@ -3,7 +3,7 @@ import os
 import logging
 import copy
 import subprocess
-
+import context  
 from constants import MAIN_FILE, GLOBAL_CONF, DEFAULT_PROVIDER, PARAMS_KEY, ANSWERS_FILE, DEFAULT_ANSWERS, ANSWERS_FILE_SAMPLE, __NULECULESPECVERSION__
 
 from utils import Utils
@@ -174,6 +174,7 @@ class Nulecule_Base(object):
             if "default" in param:
                 value = param["default"]
             if not skip_asking and (self.ask or not value) and "description" in param: #FIXME
+                context.globalCtx.addStatus("%s is missing in answers.conf ." % (name) ,status_type="ERROR")
                 logger.debug("Ask for %s: %s", name, param["description"])
                 value = Utils.askFor(name, param)
             elif not skip_asking and not value:
@@ -212,7 +213,6 @@ class Nulecule_Base(object):
 
         self.answers_data[component][param] = value
 
-    
     def writeAnswers(self, path):
         anymarkup.serialize_file(self.answers_data, path, format='ini')
 
@@ -256,8 +256,10 @@ class Nulecule_Base(object):
                     continue
                 path = os.path.join(self.target_path, Utils.sanitizePath(artifact))
                 if os.path.isfile(path):
+                    context.globalCtx.addStatus("Artifact %s: OK." % (artifact) ,status_type="PENDING")
                     logger.debug("Artifact %s: OK", artifact)
                 else:
+                    context.globalCtx.addStatus("Missing artifact %s." % (artifact) ,status_type="ERROR")
                     raise Exception("Missing artifact %s (%s)" % (artifact, path))
             checked_providers.append(provider)
 
@@ -270,6 +272,7 @@ class Nulecule_Base(object):
                 raise ValueError("Component name missing in graph")
 
             checked_providers = self.checkArtifacts(component)
+            context.globalCtx.addStatus("All artifacts OK. " ,status_type="PENDING")
             logger.info("Artifacts for %s present for these providers: %s", component, ", ".join(checked_providers))
 
     def _checkInherit(self, component, inherit_list, checked_providers):
@@ -319,7 +322,9 @@ class Nulecule_Base(object):
                 return
 
         pull = ["docker", "pull", image]
+        context.globalCtx.addStatus("Pulling image %s ..." % image, status_type="PENDING")
         if subprocess.call(pull) != 0:
+            context.globalCtx.addStatus("Couldn't pull %s." % image, status_type="ERROR")
             raise Exception("Couldn't pull %s" % image)
 
 

@@ -1,6 +1,6 @@
 FROM fedora
-
-MAINTAINER Vaclav Pavlin <vpavlin@redhat.com>
+MAINTAINER langdon <langdon@fedoraproject.org>
+#Derived from Vaclav Pavlin <vpavlin@redhat.com>; https://github.com/vpavlin/atomicapp-run
 
 WORKDIR /opt/atomicapp
 
