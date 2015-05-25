@@ -22,5 +22,8 @@ LABEL RUN docker run -it --rm --privileged --net=host -v `pwd`:/atomicapp -v /ru
 LABEL STOP docker run -it --rm --privileged --net=host -v `pwd`:/atomicapp -v /run:/run -v /:/host --name NAME -e NAME=NAME -e IMAGE=IMAGE IMAGE -v stop /atomicapp
 LABEL INSTALL docker run --rm -it --privileged -v /run:/run -v `pwd`:/atomicapp -e IMAGE=IMAGE -e NAME=NAME --name NAME IMAGE -v install --destination /atomicapp /application-entity
 
+LABEL io.projectatomic.nulecule.specversion 0.0.1-alpha
+LABEL io.projectatomic.nulecule.providers kubernetes,docker,openshift
+
 ENTRYPOINT ["/usr/bin/atomicapp"]
 
