@@ -56,11 +56,14 @@ class KubernetesProvider(Provider):
 
     def tmpfile(self):
         temp = tempfile.NamedTemporaryFile(suffix='.json',prefix='k8-namespace_',dir='/tmp')
-            logger.info("Using temporary file %s", temp)
+        logger.info("Using temporary file %s", temp)
         return temp
 
 
     def _createNamespace(self, ns):
+        if self.namespace == "default":
+            return
+
         logger.info("deploying namespace %s", self.namespace)
         ns_data = {  "apiVersion" : "v1beta3",
                 "kind" : "Namespace",
@@ -98,7 +101,7 @@ class KubernetesProvider(Provider):
 
     def deploy(self):
         logger.info("Deploying to Kubernetes")
-        _createNamespace(self.namespace)
+        self._createNamespace(self.namespace)
         self.prepareOrder()
 
         for artifact in self.kube_order:
