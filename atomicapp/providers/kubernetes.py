@@ -4,6 +4,8 @@ from collections import OrderedDict
 import os, anymarkup, subprocess
 
 import logging
+import tempfile
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +53,39 @@ class KubernetesProvider(Provider):
             else:
                 raise ProviderFailedException("Malformed kube file")
 
+
+    def tmpfile(self):
+        temp = tempfile.NamedTemporaryFile(suffix='.json',prefix='k8-namespace_',dir='/tmp')
+            logger.info("Using temporary file %s", temp)
+        return temp
+
+
+    def _createNamespace(self, ns):
+        logger.info("deploying namespace %s", self.namespace)
+        ns_data = {  "apiVersion" : "v1beta3",
+                "kind" : "Namespace",
+                "metadata" : {
+                    "name": ''
+                }
+            }
+        ns_data["metadata"]["name"] = ns
+        filelpath = self.tmpfile().name
+        with open(filelpath, 'w') as outfile:
+            json.dump(ns_data, outfile)
+
+        cmd = [self.kubectl, "create", "-f", filelpath]
+
+        if self.dryrun:
+            logger.info("DRY-RUN: %s", " ".join(cmd))
+        else:
+            try:
+                subprocess.check_call(cmd)
+            except Exception:
+                #Assuming that command only fails for NS exists case
+                pass
+
+
+
     def _resetReplicas(self, path):
         data = anymarkup.parse_file(path)
         name = data["id"]
@@ -63,6 +98,7 @@ class KubernetesProvider(Provider):
 
     def deploy(self):
         logger.info("Deploying to Kubernetes")
+        _createNamespace(self.namespace)
         self.prepareOrder()
 
         for artifact in self.kube_order:
