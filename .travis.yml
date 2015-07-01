@@ -8,3 +8,6 @@ script:
   coverage run -m unittest test
 after_success:
   coveralls
+
+notifications:
+  slack: b4mad:3FRPPWFHrnVk4hAX88p8p8qu
