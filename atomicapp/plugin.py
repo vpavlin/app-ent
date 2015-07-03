@@ -39,7 +39,7 @@ class Provider(object):
         raise NotImplementedError()
 
     def undeploy(self):
-        logger.warning("Call to undeploy for provider %s failed - this action is not implemented" % self.key)
+        logger.warning("Call to undeploy for provider %s failed - this action is not implemented", self.key)
     
     def loadArtifact(self, path):
         with open(path, "r") as fp:
@@ -51,7 +51,7 @@ class Provider(object):
         if not os.path.isdir(os.path.dirname(path)):
             os.makedirs(os.path.dirname(path))
         with open(path, "w") as fp:
-            logger.debug("Writing artifact to %s" % path)
+            logger.debug("Writing artifact to %s", path)
             fp.write(data)
 
     def __str__(self):

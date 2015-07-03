@@ -24,7 +24,8 @@ def cli_stop(args):
     stop = Run(stop = True, **vars(args))
     stop.run()
 
-class CLI():
+# see https://docs.python.org/release/2.2.3/whatsnew/sect-rellinks.html
+class CLI(object):
     def __init__(self):
         self.parser = ArgumentParser(prog='atomicapp', description='This will install and run an atomicapp, a containerized application conforming to the Nulecule Specification', formatter_class=RawDescriptionHelpFormatter)
 
