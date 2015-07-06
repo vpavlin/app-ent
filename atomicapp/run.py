@@ -1,7 +1,6 @@
 from __future__ import print_function
 import os,sys
 from string import Template
-import copy
 
 import logging
 
@@ -47,7 +46,7 @@ class Run(object):
             APP = os.environ["IMAGE"]
             del os.environ["IMAGE"]
         elif "image" in kwargs:
-            logger.warning("Setting image to %s" % kwargs["image"])
+            logger.warning("Setting image to %s", kwargs["image"])
 
             self.app_path = APP
             APP = kwargs["image"]
@@ -152,7 +151,7 @@ class Run(object):
         return artifact_provider_list, dst_dir
 
     def _processComponent(self, component, graph_item):
-        logger.debug("Processing component %s", component)
+        logger.debug("Processing component '%s' and graph item '%s'", component, graph_item)
 
         provider_class = self.plugin.getProvider(self.nulecule_base.provider)
         dst_dir = os.path.join(self.utils.workdir, component) 
