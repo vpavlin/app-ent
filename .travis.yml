@@ -1,5 +1,14 @@
 language: python
 python:
   - "2.7"
-install: "pip install -r requirements.txt"
-script: ./test.sh 
+  - "3.4"
+sudo: false 
+install: 
+  - pip install -r requirements.txt
+  - pip install coveralls
+script:
+  coverage run test.py
+after_success:
+  coveralls
+notifications:
+  slack: b4mad:3FRPPWFHrnVk4hAX88p8p8qu
