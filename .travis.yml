@@ -1,15 +1,14 @@
 language: python
 python:
   - "2.7"
-sudo: true
+  - "3.4"
+sudo: false 
 install: 
-  - curl -sLo - http://j.mp/install-travis-docker | sh -xe
   - pip install -r requirements.txt
   - pip install coveralls
 script:
-  ./run coverage run test.py
+  coverage run test.py
 after_success:
   coveralls
-
 notifications:
   slack: b4mad:3FRPPWFHrnVk4hAX88p8p8qu
