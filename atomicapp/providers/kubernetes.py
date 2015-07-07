@@ -2,7 +2,7 @@ from atomicapp.plugin import Provider, ProviderFailedException
 
 from collections import OrderedDict
 import os, anymarkup, subprocess
-
+from subprocess import Popen, PIPE
 import logging
 
 logger = logging.getLogger(__name__)
@@ -70,7 +70,16 @@ class KubernetesProvider(Provider):
         if self.dryrun:
             logger.info("DRY-RUN: %s", " ".join(cmd))
         else:
-            subprocess.check_call(cmd)
+            try:
+                p = Popen(cmd, stdout=PIPE, stderr=PIPE)
+                stdout, stderr = p.communicate()
+                logger.debug("stdout = %s", stdout)
+                logger.debug("stderr = %s", stderr)
+                if stderr and  stderr.strip() != "":
+                    raise Exception(str(stderr))
+            except Exception:
+                logger.error("cmd failed: %s", " ".join(cmd))
+                raise
 
     def prepareOrder(self):
         for artifact in self.artifacts:

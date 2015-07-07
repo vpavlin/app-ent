@@ -5,14 +5,29 @@ import re
 import collections
 import anymarkup
 from distutils.spawn import find_executable
-
+import shelve
 import logging
+from contextlib import closing
 
 from constants import APP_ENT_PATH, EXTERNAL_APP_DIR, WORKDIR
 
 __all__ = ('Utils')
 
 logger = logging.getLogger(__name__)
+
+def addShelveKV(dbname, key, val):
+    with closing(shelve.open(dbname, writeback = True)) as s:
+        s[key] = val
+
+def appendShelveKV(dbname, key, val):
+    with closing(shelve.open(dbname, writeback = True)) as s:
+        s[key].append(val)
+
+
+def getShelveKV(dbname, key):
+    with closing(shelve.open(dbname, flag = 'r')) as s:
+        return s[key]
+
 
 class Utils(object):
 
@@ -121,7 +136,12 @@ class Utils(object):
                 if len(value) == 0:
                     value = info["default"]
             else:
-                value = raw_input("%s (%s): " % (what, desc))
+                try:
+                    value = raw_input("%s (%s): " % (what, desc))
+                except EOFError:
+                    logger.error("Artifact contains unknown parameter " + what + " missing in answers.conf")
+                    raise
+
             if constraints:
                 for constraint in constraints:
                     logger.info("Checking pattern: %s", constraint["allowed_pattern"])

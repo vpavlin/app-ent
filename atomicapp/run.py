@@ -1,5 +1,5 @@
 from __future__ import print_function
-import os,sys
+import os
 from string import Template
 
 import logging
@@ -9,6 +9,7 @@ from utils import Utils
 from constants import GLOBAL_CONF, DEFAULT_PROVIDER, MAIN_FILE
 from plugin import Plugin, ProviderFailedException
 from install import Install
+import context
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,7 @@ class Run(object):
                 self.app_path = os.getcwd()
             install = Install(answers, APP, dryrun = dryrun, target_path = self.app_path)
             install.install()
+            context.globalCtx.addStatus("Install Successful." ,status_type="PENDING")
 
         self.nulecule_base = Nulecule_Base(target_path=self.app_path, dryrun = dryrun)
         if "ask" in kwargs:
@@ -81,11 +83,13 @@ class Run(object):
 
     def _dispatchGraph(self):
         if not "graph" in self.nulecule_base.mainfile_data:
+            context.globalCtx.addStatus("Graph not specified in %s." % MAIN_FILE ,status_type="ERROR")
             raise Exception("Graph not specified in %s" % MAIN_FILE)
 
         for graph_item in self.nulecule_base.mainfile_data["graph"]:
             component = graph_item.get("name")
             if not component:
+                context.globalCtx.addStatus("Component name missing in graph." ,status_type="ERROR")
                 raise ValueError("Component name missing in graph")
 
             if self.utils.isExternal(graph_item):
@@ -110,8 +114,12 @@ class Run(object):
             except KeyError as ex:
                 name = ex.args[0]
                 logger.debug("Artifact contains unknown parameter %s, asking for it", name)
-                config[name] = self.utils.askFor(name, {"description": "Missing parameter '%s', provide the value or fix your %s" % (name, MAIN_FILE)})
+                try:
+                    config[name] = self.utils.askFor(name, {"description": "Missing parameter '%s', provide the value or fix your %s" % (name, MAIN_FILE)})
+                except EOFError:
+                    raise Exception("Artifact contains unknown parameter %s" % name)
                 if not len(config[name]):
+                    context.globalCtx.addStatus("Artifact contains unknown parameter %s." % name ,status_type="ERROR")
                     raise Exception("Artifact contains unknown parameter %s" % name)
                 self.nulecule_base.loadAnswers({component: {name: config[name]}})
 
@@ -157,6 +165,7 @@ class Run(object):
         dst_dir = os.path.join(self.utils.workdir, component) 
         provider = provider_class(self.nulecule_base.getValues(component), dst_dir, self.dryrun)
         if provider:
+            context.globalCtx.addStatus("Deploying component %s ..." % component ,status_type="PENDING")
             logger.info("Using provider %s for component %s", self.nulecule_base.provider, component)
         else:
             raise Exception("Something is broken - couldn't get the provider")
@@ -170,8 +179,9 @@ class Run(object):
             else:
                 provider.deploy()
         except ProviderFailedException as ex:
+            context.globalCtx.addStatus(ex ,status_type="ERROR")
             logger.error(ex)
-            sys.exit(1)
+            raise
 
     def run(self):
         self.nulecule_base.loadMainfile(os.path.join(self.nulecule_base.target_path, MAIN_FILE))
