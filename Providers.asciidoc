@@ -51,6 +51,9 @@ There are no configuration values for the Docker provider.
 The Kubernetes Provider supports namespaces, this will deploy an
 application into a given namespace. All components of the applications
 will be created in that namespace.
+The `namespace` defined in Kubernetes artificats, if any, must match with the namespace value in configuration.
+
+Note: In Kubernetes, the default value of `namespace` field (if not defined in Kubernetes manifests explicitly) is `default` and one may leave the following configuration value to its default value.
 
 ==== configuration values
 
@@ -61,6 +64,19 @@ will be created in that namespace.
 |namespace|no|a namespace to use with each kubectl call|default
 |====================================================
 
+==== Kubernetes operations behavior
+This section explains the behavior of provider Kubernetes on running different `atomicapp` commands.
+
+`**atomicapp run**`
+
+This command deploys the app in Kubernetes cluster in specified namespace. For the given namespace, the deploy process creates objects (pods, replicas, services) in order as enlisted in Nulecule Kubernetes artifacts.
+
+`**atomicapp stop**`
+
+This command undeploys the app in Kubernetes cluster in specified namespace. For the given namespace, the undeploy process consist of 
+
+ 1. scaling down the replicas to size 0
+ 2. deleting all objects (pods, replicas, services)
 
 === OpenShift3 Provider
 
