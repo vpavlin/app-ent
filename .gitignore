@@ -44,6 +44,9 @@ nosetests.xml
 coverage.xml
 *,cover
 
+# kubernetes test generated files
+tests/cached_nulecules/helloapache/answers.conf.sample
+
 # Translations
 *.mo
 *.pot

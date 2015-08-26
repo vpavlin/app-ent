@@ -39,17 +39,21 @@ def _install_requirements():
     requirements = _get_requirements('requirements.txt')
     return requirements
 
+def _get_version():
+    version = _get_requirements('VERSION')
+    return version[0]
+
 setup(
-    name='atomicapp',
-    version='0.1.9',
-    description='A tool to install and run Nulecule apps',
-    author='Vaclav Pavlin',
-    author_email='vpavlin@redhat.com',
-    url='https://github.com/vpavlin/atomicapp-run',
-    license="MIT",
-    entry_points={
+    name = 'atomicapp',
+    version = _get_version(),
+    description = 'A tool to install and run Nulecule apps',
+    author = 'Red Hat, Inc.',
+    author_email = 'container-tools@redhat.com',
+    url = 'https://github.com/projectatomic/atomicapp',
+    license = "LGPL3",
+    entry_points = {
         'console_scripts': ['atomicapp=atomicapp.cli.main:main'],
     },
-    packages=find_packages(),
-    install_requires=['anymarkup>=0.4.1']
+    packages = find_packages(),
+    install_requires = _install_requirements()
 )
