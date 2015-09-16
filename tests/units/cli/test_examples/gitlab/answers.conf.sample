@@ -1,3 +1,6 @@
+[postgresql]
+[gitlab]
+[redis]
 [general]
 namespace = default
 provider = kubernetes
