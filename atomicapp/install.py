@@ -20,8 +20,6 @@
 from __future__ import print_function
 import os
 import distutils.dir_util
-import random
-import string
 import json
 import subprocess
 
@@ -88,7 +86,7 @@ class Install(object):
         image = self.nulecule_base.getImageURI(image)
 
         name = "%s-%s" % (self.utils.getComponentName(image),
-                          ''.join(random.sample(string.letters, 6)))
+                          ''.join(Utils.getUniqueUUID()))
         logger.debug("Creating a container with name %s", name)
 
         # Workaround docker bug BZ1252168 by using run instead of create

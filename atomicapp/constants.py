@@ -40,6 +40,7 @@ LOCK_FILE = "/run/lock/atomicapp.lock"
 HOST_DIR = "/host"
 
 DEFAULT_PROVIDER = "kubernetes"
+DEFAULT_CONTAINER_NAME = "atomic"
 DEFAULT_NAMESPACE = "default"
 DEFAULT_ANSWERS = {
     "general": {

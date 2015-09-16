@@ -30,11 +30,40 @@ Providers may need additional configuration.
 
 **Features**
 
-The Docker provider will simply start a docker container on the host the Atomic App is deployed.
+The Docker provider will simply start a Docker container on the host the Atomic App is deployed.
+
+
+Atomic App will use the name within namespace and append it with `atomic` and a hash value. If --name is provided within the Docker artifacts file, this will be used but the user will be given a warning.
 
 **Configuration values**
 
-There are no configuration values for the Docker provider.
+Table 1. Docker default configuration values
+
+Keyword  | Required | Description                                           | Default value
+---------|----------|-------------------------------------------------------|--------------
+namespace|   no     |   namespace to use when deploying docker containers   | default\*
+
+\*The naming convention used when deploying is: atomic\_APPNAME\_HASHVALUE
+
+**Operations**
+
+```
+atomicapp run
+```
+
+This command deploys the app in Docker. The deployment uses the name provided within `answers.conf` and deploys with the naming convention `atomic_APPNAME_HASHVALUE`. If a previous deployment with the same name is detected, it will fail and warn the user.
+
+```
+atomicapp stop
+```
+
+This command undeploys the app in Docker. For the given namespace, the undeploy:
+
+  1. Greps `docker ps` for the namespace
+
+  2. Kills all Docker containers that match
+
+If --name was provided in the Docker artifacts file, this command will not work.
 
 ### Kubernetes
 

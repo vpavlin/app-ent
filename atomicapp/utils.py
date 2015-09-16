@@ -23,6 +23,7 @@ import tempfile
 import re
 import collections
 import anymarkup
+import uuid
 from distutils.spawn import find_executable
 
 import logging
@@ -214,3 +215,9 @@ class Utils(object):
             return HOST_DIR
         else:
             return "/"
+
+    # generates a unique 12 character UUID
+    @staticmethod
+    def getUniqueUUID():
+        data = str(uuid.uuid4().get_hex().lower()[0:12])
+        return data
