@@ -17,9 +17,11 @@
  along with Atomic App. If not, see <http://www.gnu.org/licenses/>.
 """
 
-from atomicapp.plugin import Provider
+import anymarkup
 import os
 import subprocess
+from atomicapp.plugin import Provider
+from atomicapp.utils import printErrorStatus
 
 import logging
 
@@ -36,8 +38,7 @@ class DockerComposeProvider(Provider):
         for artifact in self.artifacts:
             artifact_path = os.path.join(self.path, artifact)
 
-            if artifact_path.find('noop-compose') >= 0:
-                logger.info('Skipping noop compose YAML file.')
+            if self._is_artifact_empty(artifact_path):
                 continue
 
             cmd = "docker-compose -f {} up -d".format(artifact_path)
@@ -51,8 +52,7 @@ class DockerComposeProvider(Provider):
         for artifact in self.artifacts:
             artifact_path = os.path.join(self.path, artifact)
 
-            if artifact_path.find('noop-compose') >= 0:
-                logger.info('Skipping noop compose YAML file.')
+            if self._is_artifact_empty(artifact_path):
                 continue
 
             cmd = "docker-compose -f {} stop".format(artifact_path)
@@ -61,3 +61,17 @@ class DockerComposeProvider(Provider):
                 logger.info("DRY-RUN: %s" % cmd)
             else:
                 subprocess.check_call(cmd.split(" "))
+
+    def _is_artifact_empty(self, artifact_path):
+        with open(artifact_path, 'r') as fp:
+            try:
+                data = anymarkup.parse(fp)
+                if not data:
+                    logger.info(
+                        'Skipping empty compose YAML file: %s' % artifact_path)
+                    return True
+            except Exception:
+                msg = "Error processing %s artifacts, Error: %s" % (
+                    artifact_path)
+                printErrorStatus(msg)
+                raise
