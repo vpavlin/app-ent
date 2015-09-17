@@ -17,7 +17,7 @@
  along with Atomic App. If not, see <http://www.gnu.org/licenses/>.
 """
 
-from atomicapp.plugin import Provider, ProviderFailedException
+from atomicapp.plugin import Provider
 import os
 import subprocess
 
@@ -36,8 +36,11 @@ class DockerComposeProvider(Provider):
         for artifact in self.artifacts:
             artifact_path = os.path.join(self.path, artifact)
 
+            if artifact_path.find('noop-compose') >= 0:
+                logger.info('Skipping noop compose YAML file.')
+                continue
+
             cmd = "docker-compose -f {} up -d".format(artifact_path)
-            logger.info("DRY-RUN: {}".format(cmd))
 
             if self.dryrun:
                 logger.info("DRY-RUN: {}".format(cmd))
@@ -47,6 +50,10 @@ class DockerComposeProvider(Provider):
     def undeploy(self):
         for artifact in self.artifacts:
             artifact_path = os.path.join(self.path, artifact)
+
+            if artifact_path.find('noop-compose') >= 0:
+                logger.info('Skipping noop compose YAML file.')
+                continue
 
             cmd = "docker-compose -f {} stop".format(artifact_path)
 

@@ -13,6 +13,7 @@ OpenShift and Kubernetes.
 Atomic App includes three providers:
 
   * Docker
+  * Docker Compose
   * Kubernetes
   * OpenShift 3
 
@@ -26,5 +27,6 @@ More documentation for each of the providers can be found in the links
 below:
 
    * [Docker](./providers/docker/overview.md)
+   * [Docker Compose](./providers/docker-compose/overview.md)
    * [Kubernetes](./providers/kubernetes/overview.md)
    * [OpenShift](./providers/openshift/overview.md)
