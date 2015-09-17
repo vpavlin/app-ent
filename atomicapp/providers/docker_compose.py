@@ -43,7 +43,7 @@ class DockerComposeProvider(Provider):
             cmd = "docker-compose -f {} up -d".format(artifact_path)
 
             if self.dryrun:
-                logger.info("DRY-RUN: {}".format(cmd))
+                logger.info("DRY-RUN: %s" % cmd)
             else:
                 subprocess.check_call(cmd.split(" "))
 
@@ -58,6 +58,6 @@ class DockerComposeProvider(Provider):
             cmd = "docker-compose -f {} stop".format(artifact_path)
 
             if self.dryrun:
-                logger.info("DRY-RUN: {}".format(cmd))
+                logger.info("DRY-RUN: %s" % cmd)
             else:
                 subprocess.check_call(cmd.split(" "))
