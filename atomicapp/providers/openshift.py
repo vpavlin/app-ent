@@ -25,10 +25,9 @@ import os
 import anymarkup
 import subprocess
 from distutils.spawn import find_executable
+from atomicapp.display import Display
 
-import logging
-
-logger = logging.getLogger(__name__)
+display = Display()
 
 
 class OpenShiftProvider(Provider):
@@ -54,7 +53,7 @@ class OpenShiftProvider(Provider):
             if not self.cli or not os.access(self.cli, os.X_OK):
                 raise ProviderFailedException("Command %s not found" % self.cli)
             else:
-                logger.debug("Using %s to run OpenShift commands.", self.cli)
+                display.debug("Using %s to run OpenShift commands." % self.cli)
 
             # Check if OpenShift config file is accessible
             self.checkConfigFile()
@@ -63,7 +62,7 @@ class OpenShiftProvider(Provider):
         cmd = [self.cli, "--config=%s" % self.config_file, "create", "-f", path]
 
         if self.dryrun:
-            logger.info("Calling: %s", " ".join(cmd))
+            display.info("Calling: %s" % " ".join(cmd))
         else:
             subprocess.check_call(cmd)
 
@@ -74,7 +73,7 @@ class OpenShiftProvider(Provider):
         output_path = os.path.join(self.path, name)
         if self.cli and not self.dryrun:
             output = subprocess.check_output(cmd)
-            logger.debug("Writing processed template to %s", output_path)
+            display.debug("Writing processed template to %s" % output_path)
             with open(output_path, "w") as fp:
                 fp.write(output)
         return name
@@ -113,7 +112,7 @@ class OpenShiftProvider(Provider):
                 data = anymarkup.parse(fp, force_types=None)
             if "kind" in data:
                 if data["kind"].lower() == "template":
-                    logger.info("Processing template")
+                    display.info("Processing template")
                     artifact = self._processTemplate(artifact_path)
                 kube_order[data["kind"].lower()] = artifact
             else:

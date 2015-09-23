@@ -25,30 +25,30 @@ import collections
 import anymarkup
 import uuid
 from distutils.spawn import find_executable
-
-import logging
-
+from atomicapp.display import Display
 from constants import APP_ENT_PATH, EXTERNAL_APP_DIR, WORKDIR, HOST_DIR
+
+display = Display()
+
 
 __all__ = ('Utils')
 
-logger = logging.getLogger(__name__)
 
 # Following Methods(printStatus, printErrorStatus, printAnswerFile)
 #  are required for Cockpit or thirdparty management tool integration
-#  DONOT change the atomicapp.status.* prefix in the logger method.
+#  DONOT change the atomicapp.status.* prefix in the display method.
 
 
 def printStatus(message):
-    logger.info("atomicapp.status.info.message=" + str(message))
+    display.info("atomicapp.status.info.message=" + str(message))
 
 
 def printErrorStatus(message):
-    logger.info("atomicapp.status.error.message=" + str(message))
+    display.error("atomicapp.status.error.message=" + str(message))
 
 
 def printAnswerFile(message):
-    logger.info("atomicapp.status.answer.message=" + str(message))
+    display.info("atomicapp.status.answer.message=" + str(message))
 
 
 class Utils(object):
@@ -61,7 +61,7 @@ class Utils(object):
     def workdir(self):
         if not self.__workdir:
             self.__workdir = os.path.join(self.target_path, WORKDIR)
-            logger.debug("Using working directory %s", self.__workdir)
+            display.debug("Using working directory %s" % self.__workdir)
             if not os.path.isdir(self.__workdir):
                 os.mkdir(self.__workdir)
 
@@ -71,7 +71,7 @@ class Utils(object):
     def tmpdir(self):
         if not self.__tmpdir:
             self.__tmpdir = tempfile.mkdtemp(prefix="nulecule-")
-            logger.info("Using temporary directory %s", self.__tmpdir)
+            display.info("Using temporary directory %s" % self.__tmpdir)
 
         return self.__tmpdir
 
@@ -98,7 +98,7 @@ class Utils(object):
 
     @staticmethod
     def getComponentName(graph_item):
-        # logger.debug("Getting name for %s", graph_item)
+        # display.debug("Getting name for %s", graph_item)
         if type(graph_item) is str or type(graph_item) is unicode:
             return os.path.basename(graph_item).split(":")[0]
         elif type(graph_item) is dict:
@@ -121,7 +121,7 @@ class Utils(object):
 
     @staticmethod
     def isExternal(graph_item):
-        logger.debug(graph_item)
+        display.debug(graph_item)
         if "artifacts" in graph_item:
             return False
 
@@ -167,9 +167,9 @@ class Utils(object):
 
             if constraints:
                 for constraint in constraints:
-                    logger.info("Checking pattern: %s", constraint["allowed_pattern"])
+                    display.info("Checking pattern: %s" % constraint["allowed_pattern"])
                     if not re.match("^%s$" % constraint["allowed_pattern"], value):
-                        logger.error(constraint["description"])
+                        display.error(constraint["description"])
                         repeat = True
 
         return value
@@ -203,7 +203,7 @@ class Utils(object):
         cli = find_executable("docker")
         if not cli:
             if dryrun:
-                logger.error("Could not find docker client")
+                display.error("Could not find docker client")
             else:
                 raise Exception("Could not find docker client")
 
