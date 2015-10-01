@@ -28,14 +28,12 @@ import logging
 from lockfile import LockFile
 from lockfile import AlreadyLocked
 
-from atomicapp import set_logging
 from atomicapp.constants import \
     ANSWERS_FILE, __ATOMICAPPVERSION__, \
     __NULECULESPECVERSION__, ANSWERS_FILE_SAMPLE_FORMAT, \
     LOCK_FILE
 from atomicapp.utils import Utils
-
-logger = logging.getLogger(__name__)
+from atomicapp.display import Display, set_logging
 
 
 def cli_install(args):
@@ -74,6 +72,7 @@ class CLI():
                 "This will install and run an Atomic App, "
                 "a containerized application conforming to the Nulecule Specification"),
             formatter_class=RawDescriptionHelpFormatter)
+        self.display = Display()
 
     def set_arguments(self):
 
@@ -220,14 +219,13 @@ class CLI():
         except KeyboardInterrupt:
             pass
         except AlreadyLocked:
-            logger.error("Could not proceed - there is probably another instance of Atomic App running on this machine.")
+            self.display.error("Could not proceed - there is probably another instance of Atomic App running on this machine.")
         except Exception as ex:
             if args.verbose:
                 raise
             else:
-                logger.error("Exception caught: %s", repr(ex))
-                logger.error(
-                    "Run the command again with -v option to get more information.")
+                self.display.error("Exception caught: %s" % repr(ex))
+                self.display.error("Run the command again with -v option to get more information.")
         finally:
             if lock.i_am_locking():
                 lock.release()

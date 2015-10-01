@@ -19,7 +19,6 @@
 
 import anymarkup
 import os
-import logging
 import copy
 import subprocess
 
@@ -28,8 +27,7 @@ from constants import MAIN_FILE, GLOBAL_CONF, DEFAULT_PROVIDER, PARAMS_KEY, \
     __NULECULESPECVERSION__, ANSWERS_FILE_SAMPLE_FORMAT
 
 from utils import Utils, printStatus, printErrorStatus
-
-logger = logging.getLogger(__name__)
+from display import Display
 
 
 class Nulecule_Base(object):
@@ -91,23 +89,24 @@ class Nulecule_Base(object):
         self.docker_cli = Utils.getDockerCli(dryrun)
         self.answer_file_format = file_format
         self.cli_provider = cli_provider
+        self.display = Display()
 
     def loadParams(self, data=None):
-        if type(data) == dict:
-            logger.debug("Data given: %s", data)
+        if isinstance(data, dict):
+            self.display.debug("Data given: %s" % data)
         elif os.path.exists(data):
-            logger.debug("Path given, loading %s", data)
+            self.display.debug("Path given, loading %s" % data)
             data = anymarkup.parse_file(data)
         else:
             raise Exception("Given params are broken: %s" % data)
 
         if "specversion" in data:
-            logger.debug("Params part of %s", MAIN_FILE)
+            self.display.debug("Params part of %s" % MAIN_FILE)
             tmp = {}
             tmp[GLOBAL_CONF] = self.fromListToDict(data[PARAMS_KEY])
             data = tmp
         else:
-            logger.debug("Params in separate file")
+            self.display.debug("Params in separate file")
 
         if self.params_data:
             self.params_data = Utils.update(self.params_data, data)
@@ -123,24 +122,24 @@ class Nulecule_Base(object):
         self.mainfile_data = anymarkup.parse_file(path)
         if "id" in self.mainfile_data:
             self.app_id = self.mainfile_data["id"]
-            logger.debug("Setting app id to %s", self.mainfile_data["id"])
+            self.display.debug("Setting app id to %s" % self.mainfile_data["id"])
         else:
             raise Exception("Missing ID in %s" % self.mainfile_data)
 
         if PARAMS_KEY in self.mainfile_data:
-            logger.debug("Loading params")
+            self.display.debug("Loading params")
             self.loadParams(self.mainfile_data)
 
         return self.mainfile_data
 
     def loadAnswers(self, data=None):
         if not data:
-            logger.info("No answers data given")
+            self.display.info("No answers data given")
 
-        if type(data) == dict:
-            logger.debug("Data given %s", data)
+        if isinstance(data, dict):
+            self.display.debug("Data given %s" % data)
         elif os.path.exists(data):
-            logger.debug("Path to answers file given, loading %s", data)
+            self.display.debug("Path to answers file given, loading %s" % data)
             if os.path.isdir(data):
                 if os.path.isfile(os.path.join(data, ANSWERS_FILE)):
                     data = os.path.join(data, ANSWERS_FILE)
@@ -190,8 +189,7 @@ class Nulecule_Base(object):
         if component == GLOBAL_CONF:
             if self.mainfile_data and PARAMS_KEY in self.mainfile_data:
                 config = self.fromListToDict(self.mainfile_data[PARAMS_KEY])
-                component_config = Utils.update(
-                    component_config, config)
+                component_config = Utils.update(component_config, config)
         else:
             graph_item = self.getComponent(component)
             if graph_item and PARAMS_KEY in graph_item:
@@ -206,16 +204,16 @@ class Nulecule_Base(object):
     def _getValue(self, param, name, skip_asking=False):
         value = None
 
-        if type(param) == dict:
+        if isinstance(param, dict):
             if "default" in param:
                 value = param["default"]
             if not skip_asking and (self.ask or not value) and \
                     "description" in param:  # FIXME
                 printErrorStatus("%s is missing in answers.conf ." % (name))
-                logger.debug("Ask for %s: %s", name, param["description"])
+                self.display.debug("Ask for %s: %s" % (name, param["description"]))
                 value = Utils.askFor(name, param)
             elif not skip_asking and not value:
-                logger.debug("Skipping %s", name)
+                self.display.debug("Skipping %s" % name)
                 value = param
         else:
             value = param
@@ -241,10 +239,8 @@ class Nulecule_Base(object):
         if component not in self.answers_data:
             self.answers_data[component] = {}
 
-        if component != GLOBAL_CONF and param in self.answers_data[GLOBAL_CONF] \
-                and value == self.answers_data[GLOBAL_CONF][param]:
-            logger.debug(
-                "Param %s already in %s with value %s", param, GLOBAL_CONF, value)
+        if component != GLOBAL_CONF and param in self.answers_data[GLOBAL_CONF] and value == self.answers_data[GLOBAL_CONF][param]:
+            self.display.debug("Param %s already in %s with value %s" % (param, GLOBAL_CONF, value))
             return
 
         if param not in self.answers_data[component]:
@@ -253,13 +249,12 @@ class Nulecule_Base(object):
         self.answers_data[component][param] = value
 
     def writeAnswers(self, path):
-        logger.debug("writing %s to %s with format %s",
-                     self.answers_data, path, self.answer_file_format)
+        self.display.debug("writing %s to %s with format %s" % (self.answers_data, path, self.answer_file_format))
         anymarkup.serialize_file(self.answers_data, path, format=self.answer_file_format)
 
     def writeAnswersSample(self):
         path = os.path.join(self.target_path, ANSWERS_FILE_SAMPLE)
-        logger.info("Writing answers file template to %s", path)
+        self.display.info("Writing answers file template to %s" % path)
         self.writeAnswers(path)
 
     def getComponent(self, component):
@@ -282,7 +277,7 @@ class Nulecule_Base(object):
         checked_providers = []
         artifacts = self.getArtifacts(component)
         if not artifacts:
-            logger.debug("No artifacts for %s", component)
+            self.display.debug("No artifacts for %s" % component)
             return []
 
         for provider, artifact_list in artifacts.iteritems():
@@ -290,16 +285,16 @@ class Nulecule_Base(object):
                     or provider in checked_providers:
                 continue
 
-            logger.debug("Provider: %s", provider)
+            self.display.debug("Provider: %s" % provider)
             for artifact in artifact_list:
                 if "inherit" in artifact:
                     self._checkInherit(component, artifact["inherit"], checked_providers)
                     continue
                 path = os.path.join(self.target_path, Utils.sanitizePath(artifact))
                 if os.path.isfile(path):
-                    printStatus("Artifact %s: OK." % (artifact))
+                    printStatus("Artifact %s: OK" % (artifact))
                 else:
-                    printErrorStatus("Missing artifact %s." % (artifact))
+                    printErrorStatus("Missing artifact %s" % (artifact))
                     raise Exception("Missing artifact %s (%s)" % (artifact, path))
             checked_providers.append(provider)
 
@@ -312,14 +307,13 @@ class Nulecule_Base(object):
                 raise ValueError("Component name missing in graph")
 
             checked_providers = self.checkArtifacts(component)
-            printStatus("All artifacts OK. ")
-            logger.info("Artifacts for %s present for these providers: %s",
-                        component, ", ".join(checked_providers))
+            printStatus("All artifacts OK")
+            self.display.info("Artifacts for %s present for these providers: %s" % (component, ", ".join(checked_providers)))
 
     def _checkInherit(self, component, inherit_list, checked_providers):
         for inherit_provider in inherit_list:
             if inherit_provider not in checked_providers:
-                logger.debug("Checking %s because of 'inherit'", inherit_provider)
+                self.display.debug("Checking %s because of 'inherit'" % inherit_provider)
                 checked_providers += self.checkArtifacts(component, inherit_provider)
 
     def checkSpecVersion(self):
@@ -331,21 +325,19 @@ class Nulecule_Base(object):
             raise ValueError(msg)
 
         if self.mainfile_data["specversion"] == __NULECULESPECVERSION__:
-            logger.debug("Version check successful: specversion == %s",
-                         __NULECULESPECVERSION__)
+            self.display.debug("Version check successful: specversion == %s" % __NULECULESPECVERSION__)
         else:
-            logger.error("Your version in %s file (%s) does not match "
-                         "supported version (%s)" % (MAIN_FILE,
-                                                     self.mainfile_data["specversion"],
-                                                     __NULECULESPECVERSION__))
+            self.display.error(
+                "Your version in %s file (%s) does not match supported version (%s)" %
+                (MAIN_FILE, self.mainfile_data["specversion"], __NULECULESPECVERSION__))
             raise Exception("Spec version check failed")
 
     def getImageURI(self, image):
         config = self.get()
-        logger.debug(config)
+        self.display.debug(config)
 
         if "registry" in config:
-            logger.info("Adding registry %s for %s", config["registry"], image)
+            self.display.info("Adding registry %s for %s" % (config["registry"], image))
             image = os.path.join(config["registry"], image)
 
         return image
@@ -360,11 +352,11 @@ class Nulecule_Base(object):
         if not update:
             check_cmd = ["docker", "images", "-q", image]
             image_id = subprocess.check_output(check_cmd)
-            logger.debug("Output of docker images cmd: %s", image_id)
+            self.display.debug("Output of docker images cmd: %s" % image_id)
             if len(image_id) != 0:
-                logger.debug(
-                    "Image %s already present with id %s. Use --update to re-pull.",
-                    image, image_id.strip())
+                self.display.debug(
+                    "Image %s already present with id %s. Use --update to re-pull." %
+                    (image, image_id.strip()))
                 return
 
         pull = ["docker", "pull", image]
@@ -379,7 +371,7 @@ class Nulecule_Base(object):
             if "name" in item:
                 result[item.get("name")] = item
             else:
-                logger.warning("Attribute 'name' missing in %s", item)
+                self.display.warning("Attribute 'name' missing in %s" % item)
 
         return result
 

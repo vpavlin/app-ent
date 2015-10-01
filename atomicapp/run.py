@@ -21,18 +21,15 @@ from __future__ import print_function
 import os
 from string import Template
 
-import logging
-
 from nulecule_base import Nulecule_Base
 from utils import Utils, printStatus, printErrorStatus
 from constants import GLOBAL_CONF, DEFAULT_PROVIDER, MAIN_FILE, ANSWERS_FILE_SAMPLE_FORMAT
 from plugin import Plugin, ProviderFailedException
 from install import Install
+from display import Display
 
-logger = logging.getLogger(__name__)
 
-
-class Run(object):
+class Run:
     debug = False
     dryrun = False
     nulecule_base = None
@@ -55,6 +52,7 @@ class Run(object):
             answers_format=ANSWERS_FILE_SAMPLE_FORMAT, **kwargs):
 
         self.debug = debug
+        self.display = Display()
         self.dryrun = dryrun
         self.stop = stop
         self.kwargs = kwargs
@@ -71,7 +69,7 @@ class Run(object):
             APP = os.environ["IMAGE"]
             del os.environ["IMAGE"]
         elif "image" in kwargs:
-            logger.warning("Setting image to %s" % kwargs["image"])
+            self.display.warning("Setting image to %s" % kwargs["image"])
 
             self.app_path = APP
             APP = kwargs["image"]
@@ -88,7 +86,7 @@ class Run(object):
                 answers, APP, dryrun=dryrun, target_path=self.app_path,
                 answers_format=answers_format)
             install.install()
-            printStatus("Install Successful.")
+            printStatus("Install successful")
 
         self.nulecule_base = Nulecule_Base(
             target_path=self.app_path,
@@ -112,13 +110,13 @@ class Run(object):
 
     def _dispatchGraph(self):
         if "graph" not in self.nulecule_base.mainfile_data:
-            printErrorStatus("Graph not specified in %s." % MAIN_FILE)
+            printErrorStatus("Graph not specified in %s" % MAIN_FILE)
             raise Exception("Graph not specified in %s" % MAIN_FILE)
 
         for graph_item in self.nulecule_base.mainfile_data["graph"]:
             component = graph_item.get("name")
             if not component:
-                printErrorStatus("Component name missing in graph.")
+                printErrorStatus("Component name missing in graph")
                 raise ValueError("Component name missing in graph")
 
             if self.utils.isExternal(graph_item):
@@ -137,17 +135,17 @@ class Run(object):
             config = self.nulecule_base.getValues(component, skip_asking=True)
         else:
             config = self.nulecule_base.getValues(component)
-        logger.debug("Config: %s ", config)
+        self.display.debug("Config: %s " % config)
 
         output = None
         while not output:
             try:
-                logger.debug(config)
+                self.display.debug(config)
                 output = template.substitute(config)
             except KeyError as ex:
                 name = ex.args[0]
-                logger.debug(
-                    "Artifact contains unknown parameter %s, asking for it", name)
+                self.display.debug(
+                    "Artifact contains unknown parameter %s, asking for it" % name)
                 try:
                     config[name] = self.utils.askFor(
                         name,
@@ -157,7 +155,7 @@ class Run(object):
                 except EOFError:
                     raise Exception("Artifact contains unknown parameter %s" % name)
                 if not len(config[name]):
-                    printErrorStatus("Artifact contains unknown parameter %s." % name)
+                    printErrorStatus("Artifact contains unknown parameter %s" % name)
                     raise Exception("Artifact contains unknown parameter %s" % name)
                 self.nulecule_base.loadAnswers({component: {name: config[name]}})
 
@@ -170,7 +168,7 @@ class Run(object):
         artifacts = self.nulecule_base.getArtifacts(component)
         artifact_provider_list = []
         if provider_name not in artifacts:
-            msg = "Data for provider \"%s\" are not part of this app" % provider_name
+            msg = "Data for provider \"%s\" is not part of this app" % provider_name
             raise Exception(msg)
 
         dst_dir = os.path.join(self.utils.workdir, component)
@@ -178,7 +176,7 @@ class Run(object):
 
         for artifact in artifacts[provider_name]:
             if "inherit" in artifact:
-                logger.debug("Inheriting from %s", artifact["inherit"])
+                self.display.debug("Inheriting from %s" % artifact["inherit"])
                 for item in artifact["inherit"]:
                     inherited_artifacts, _ = self._processArtifacts(
                         component, provider, item)
@@ -187,7 +185,7 @@ class Run(object):
             artifact_path = self.utils.sanitizePath(artifact)
             data = provider.loadArtifact(os.path.join(self.app_path, artifact_path))
 
-            logger.debug("Templating artifact %s/%s", self.app_path, artifact_path)
+            self.display.debug("Templating artifact %s/%s" % (self.app_path, artifact_path))
             data = self._applyTemplate(data, component)
 
             artifact_dst = os.path.join(dst_dir, artifact_path)
@@ -199,8 +197,8 @@ class Run(object):
         return artifact_provider_list, dst_dir
 
     def _processComponent(self, component, graph_item):
-        logger.debug(
-            "Processing component '%s' and graph item '%s'", component, graph_item)
+        self.display.debug(
+            "Processing component '%s' and graph item '%s'" % (component, graph_item))
         provider_class = self.plugin.getProvider(self.nulecule_base.provider)
         dst_dir = os.path.join(self.utils.workdir, component)
         if self.stop:
@@ -210,10 +208,9 @@ class Run(object):
         provider = provider_class(component_values, dst_dir, self.dryrun)
         if provider:
             printStatus("Deploying component %s ..." % component)
-            logger.info("Using provider %s for component %s",
-                        self.nulecule_base.provider, component)
+            self.display.info("Using provider %s for component %s" % (self.nulecule_base.provider, component))
         else:
-            raise Exception("Something is broken - couldn't get the provider")
+            raise Exception("Something is broken - could not get the provider")
 
         provider.artifacts, dst_dir = self._processArtifacts(component, provider)
 
@@ -225,7 +222,7 @@ class Run(object):
                 provider.deploy()
         except ProviderFailedException as ex:
             printErrorStatus(ex)
-            logger.error(ex)
+            self.display.error(ex)
             raise
 
     def run(self):

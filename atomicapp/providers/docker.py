@@ -20,12 +20,12 @@
 import os
 import subprocess
 import re
-import logging
 from atomicapp.constants import DEFAULT_CONTAINER_NAME, DEFAULT_NAMESPACE
 from atomicapp.plugin import Provider, ProviderFailedException
 from atomicapp.utils import Utils
+from atomicapp.display import Display
 
-logger = logging.getLogger(__name__)
+display = Display()
 
 
 class DockerProvider(Provider):
@@ -35,13 +35,13 @@ class DockerProvider(Provider):
         self.namespace = DEFAULT_NAMESPACE
         self.default_name = DEFAULT_CONTAINER_NAME
 
-        logger.debug("Given config: %s", self.config)
+        display.debug("Given config: %s" % self.config)
         if self.config.get("namespace"):
             self.namespace = self.config.get("namespace")
-        logger.debug("Namespace: %s", self.namespace)
+        display.debug("Namespace: %s" % self.namespace)
 
         if self.dryrun:
-            logger.info("DRY-RUN: Did not check Docker version compatibility")
+            self.display.info("DRY-RUN: Did not check Docker version compatibility")
         else:
             cmd_check = ["docker", "version"]
             try:
@@ -65,13 +65,13 @@ class DockerProvider(Provider):
     def _get_containers(self):
         docker_cmd = 'docker inspect --format="{{ .Name }}" $(docker ps -aq --no-trunc) | sed "s,/,,g"'
         if self.dryrun:
-            logger.info("DRY-RUN: %s", docker_cmd)
+            display.info("DRY-RUN: %s" % docker_cmd)
             return []
         else:
             return dict((line, 1) for line in subprocess.check_output(docker_cmd, shell=True).splitlines())
 
     def deploy(self):
-        logger.info("Deploying to provider: Docker")
+        display.info("Deploying to provider: Docker")
 
         for artifact in self.artifacts:
             artifact_path = os.path.join(self.path, artifact)
@@ -83,7 +83,7 @@ class DockerProvider(Provider):
             # If --name is provided, do not re-name due to potential linking of containers. Warn user instead.
             # Else use namespace provided within answers.conf
             if '--name' in run_args:
-                logger.info("WARNING: Using --name provided within artifact file.")
+                display.info("WARNING: Using --name provided within artifact file.")
             else:
                 for container in self._get_containers():
                     if re.match("%s_+%s+_+[a-zA-Z0-9]{12}" % (self.default_name, self.namespace), container):
@@ -91,12 +91,12 @@ class DockerProvider(Provider):
                 run_args.insert(run_args.index('run') + 1, "--name=%s_%s_%s" % (self.default_name, self.namespace, Utils.getUniqueUUID()))
             cmd = run_args
             if self.dryrun:
-                logger.info("DRY-RUN: %s", " ".join(cmd))
+                display.info("DRY-RUN: %s" % " ".join(cmd))
             else:
                 subprocess.check_call(cmd)
 
     def undeploy(self):
-        logger.info("Undeploying to provider: Docker")
+        display.info("Undeploying to provider: Docker")
         artifact_names = list()
 
         # Gather the list of containers within /artifacts/docker
@@ -110,7 +110,7 @@ class DockerProvider(Provider):
             # If any artifacts are labelled by name, add it to a container dict list
             if '--name' in run_args:
                 artifact_names.append(run_args[run_args.index('--name') + 1])
-                logger.debug("artifact cnames: %s", artifact_names)
+                display.debug("artifact cnames: %s" % artifact_names)
 
         # Regex checks for matching container name and kills it. ex. atomic_mariadb-atomicapp-app_9dfb369ed2a0
         for container in self._get_containers():
@@ -119,9 +119,9 @@ class DockerProvider(Provider):
             else:
                 m = re.match("%s_+%s+_+[a-zA-Z0-9]{12}" % (self.default_name, self.namespace), container)
             if m:
-                logger.info("REMOVING CONTAINER: %s", container)
+                display.info("Stopping container: %s" % container)
                 cmd = ["docker", "kill", container]
                 if self.dryrun:
-                    logger.info("DRY-RUN: REMOVING CONTAINER %s", " ".join(cmd))
+                    display.info("DRY-RUN: REMOVING CONTAINER %s" % " ".join(cmd))
                 else:
                     subprocess.check_call(cmd)
