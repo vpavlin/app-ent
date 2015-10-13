@@ -1,5 +1,6 @@
 # ignore specific to Atomic App
 .workdir/
+**/answers.conf.sample
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

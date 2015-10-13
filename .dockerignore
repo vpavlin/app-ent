@@ -1,0 +1,9 @@
+.git
+.gitignore
+README.md
+CHANGELOG.md
+CONTRIBUTING.md
+MAINTAINERS
+Makefile
+tox.ini
+.travis.yml
