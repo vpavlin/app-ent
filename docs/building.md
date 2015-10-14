@@ -12,3 +12,8 @@ Some default values are set within the Makefile:
 * `BASE_IMAGE_NAME` - the base image name to use for the build
 * `DOCKERFILE` - the (os depending) dockerfile to use for building the image
 * `TAG` - a tag to use for the build
+
+## Usage example
+
+To generate a Debian GNU/Linux Jessie based Atomic App base image, simply use
+the command line `make image TARGET=debian8`.

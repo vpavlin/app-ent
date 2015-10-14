@@ -20,6 +20,7 @@ all: test
 
 install:
 	python setup.py install
+.PHONY: install
 
 test: syntax-check
 	python -m pytest -vv
