@@ -2,6 +2,9 @@ BASE_IMAGE_NAME = atomicapp
 TAG = atomicapp:dev
 DOCKERFILE = Dockerfile
 
+# https://www.gnu.org/software/make/manual/html_node/Phony-Targets.html
+.PHONY: install syntax-check rmi
+
 ifeq ($(TARGET), rhel7)
 	OS := rhel7
 	DOCKERFILE := Dockerfile.rhel7
@@ -20,7 +23,6 @@ all: test
 
 install:
 	python setup.py install
-.PHONY: install
 
 test: syntax-check
 	python -m pytest -vv
@@ -29,5 +31,7 @@ image: syntax-check
 	docker build -t $(TAG) -f $(DOCKERFILE) .
 
 syntax-check:
-		flake8 atomicapp
-.PHONY: syntax-check
+	flake8 atomicapp
+
+rmi:
+	docker rmi $(TAG)

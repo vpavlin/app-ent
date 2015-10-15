@@ -7,6 +7,9 @@ This Makefile includes three major targets:
 * `install` - to install atomicapp locally
 * `image` - to create a docker container image for Atomic App
 
+The Makefile also provides a `rmi` taget, which will remove the docker image
+from the local system.
+
 Some default values are set within the Makefile:
 
 * `BASE_IMAGE_NAME` - the base image name to use for the build
