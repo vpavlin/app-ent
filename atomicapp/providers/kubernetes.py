@@ -45,10 +45,10 @@ class KubernetesProvider(Provider):
         self.k8s_manifests = []
 
         logger.debug("Given config: %s", self.config)
-        if self.config.get("namespace"):
-            self.namespace = self.config.get("namespace")
+        if self.config["general"]["namespace"]:
+            self.namespace = self.config["general"]["namespace"]
+        logger.debug("Namespace: %s", self.namespace)
 
-        logger.info("Using namespace %s", self.namespace)
         if self.container:
             self.kubectl = self._find_kubectl(Utils.getRoot())
             kube_conf_path = "/etc/kubernetes"

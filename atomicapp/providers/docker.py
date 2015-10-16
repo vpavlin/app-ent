@@ -36,8 +36,8 @@ class DockerProvider(Provider):
         self.default_name = DEFAULT_CONTAINER_NAME
 
         logger.debug("Given config: %s", self.config)
-        if self.config.get("namespace"):
-            self.namespace = self.config.get("namespace")
+        if self.config["general"]["namespace"]:
+            self.namespace = self.config["general"]["namespace"]
         logger.debug("Namespace: %s", self.namespace)
 
         if self.dryrun:
