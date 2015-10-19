@@ -131,3 +131,7 @@ There are two required labels for OpenShift to run an Atomic App.
   * run the container to allow the image to determine what OpenShift objects are created.
 1. `io.openshift.generate.token.as=env:TOKEN_ENV_VAR`
   * run the container with user token so `oc` commands can be run on behalf of the user from within the container pod.
+
+**Client**
+
+When OpenShift runs an Atomic App the `oc` client must be available to the pod that is run. Currently the `oc` client binary is part of the Atomic App base image and the user token is passed into the container pod.

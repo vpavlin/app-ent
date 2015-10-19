@@ -23,7 +23,11 @@ RUN echo -e "[epel]\nname=epel\nenabled=1\nbaseurl=https://dl.fedoraproject.org/
 RUN yum install -y --setopt=tsflags=nodocs python-pip python-setuptools docker gcc && \
     python setup.py install && \
     yum remove -y gcc cpp glibc-devel glibc-headers kernel-headers libmpc mpfr python-pip && \
-    yum clean all
+    yum clean all && \
+    curl -L https://github.com/openshift/origin/releases/download/v1.0.2/openshift-origin-v1.0.2-325c7b7-linux-amd64.tar.gz | tar -zx && \
+    mv oc /usr/local/bin && \
+    rm oadm && \
+    rm openshift
 
 WORKDIR /atomicapp
 VOLUME /atomicapp
