@@ -49,6 +49,8 @@ class KubernetesProvider(Provider):
             self.namespace = self.config.get("namespace")
 
         logger.info("Using namespace %s", self.namespace)
+
+        # if in a container then must link to host's kube conf
         if self.container:
             self.kubectl = self._find_kubectl(Utils.getRoot())
             kube_conf_path = "/etc/kubernetes"
@@ -118,7 +120,8 @@ class KubernetesProvider(Provider):
         """
 
         if self.dryrun:
-            logger.info("DRY-RUN: %s", " ".join(cmd))
+            logger.info("DRY-RUN: %s" % " ".join(cmd))
+            return "DRY RUN BOGUS OUTPUT"
         else:
             try:
                 p = Popen(cmd, stdout=PIPE, stderr=PIPE)
