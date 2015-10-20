@@ -76,7 +76,7 @@ class TestKubernetesProviderBase(unittest.TestCase):
         data = {'namespace': 'testing', 'provider': 'kubernetes', 'providerconfig': path}
 
         provider = self.prepare_provider(data)
-
+        provider.init()
         provider.checkConfigFile()
         with open(path, "r") as fp:
             self.assertEqual(fp.read(), MOCK_CONTENT)
@@ -86,5 +86,6 @@ class TestKubernetesProviderBase(unittest.TestCase):
         path = self.create_temp_file()
         data = {'namespace': 'testing', 'provider': 'openshift'}
         provider = self.prepare_provider(data)
+        provider.init()
         provider.checkConfigFile()
         self.assertRaises(ProviderFailedException, provider.checkConfigFile)
