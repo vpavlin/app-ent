@@ -3,6 +3,8 @@ from atomicapp.constants import (GLOBAL_CONF, DEFAULT_PROVIDER,
                                  DEFAULT_ANSWERS)
 from atomicapp.utils import Utils
 from atomicapp.plugin import Plugin
+import os
+import subprocess
 
 plugin = Plugin()
 plugin.load_plugins()
@@ -98,11 +100,31 @@ class NuleculeBase(object):
             tuple: (provider key, provider instance)
         """
         if provider_key is None:
-            provider_key = self.config.get('general', {}).get(
-                'provider', DEFAULT_PROVIDER)
+            if self.is_openshift:
+                provider_key = "openshift"
+            else:
+                provider_key = self.config.get('general', {}).get(
+                    'provider', DEFAULT_PROVIDER)
         provider_class = plugin.getProvider(provider_key)
         return provider_key, provider_class(
             self.get_context(), self.basepath, dry)
+
+    @property
+    def is_openshift(self):
+        """
+        The KUBERNETES_SERVICE_HOST env var should only exist
+        on an openshift or kubernetes environment.
+        Here we check if the "kubernetes" host has an openshift
+        API endpoint. If so, we're calling openshift.
+        """
+        if os.getenv("KUBERNETES_SERVICE_HOST"):
+            curl_cmd = ("curl -ks -w '%{http_code}' "
+                        "https://${KUBERNETES_SERVICE_HOST}/oapi/ "
+                        "-o /dev/null")
+            http_code = subprocess.check_output(curl_cmd.split())
+            if int(http_code.replace("'", "")) is 200:
+                return True
+        return False
 
     def run(self, provider_key=None, dry=False):
         raise NotImplementedError
