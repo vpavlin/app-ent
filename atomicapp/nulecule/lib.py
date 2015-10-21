@@ -4,7 +4,7 @@ from atomicapp.constants import (GLOBAL_CONF, DEFAULT_PROVIDER,
 from atomicapp.utils import Utils
 from atomicapp.plugin import Plugin
 import os
-import subprocess
+import urllib2
 
 plugin = Plugin()
 plugin.load_plugins()
@@ -100,7 +100,7 @@ class NuleculeBase(object):
             tuple: (provider key, provider instance)
         """
         if provider_key is None:
-            if self.is_openshift:
+            if self.running_on_openshift:
                 provider_key = "openshift"
             else:
                 provider_key = self.config.get('general', {}).get(
@@ -110,20 +110,22 @@ class NuleculeBase(object):
             self.get_context(), self.basepath, dry)
 
     @property
-    def is_openshift(self):
+    def running_on_openshift(self):
         """
         The KUBERNETES_SERVICE_HOST env var should only exist
         on an openshift or kubernetes environment.
         Here we check if the "kubernetes" host has an openshift
-        API endpoint. If so, we're calling openshift.
+        API endpoint. If so, we're running from an openshift pod.
         """
-        if os.getenv("KUBERNETES_SERVICE_HOST"):
-            curl_cmd = ("curl -ks -w '%{http_code}' "
-                        "https://${KUBERNETES_SERVICE_HOST}/oapi/ "
-                        "-o /dev/null")
-            http_code = subprocess.check_output(curl_cmd.split())
-            if int(http_code.replace("'", "")) is 200:
-                return True
+        _kube_host = os.getenv("KUBERNETES_SERVICE_HOST")
+        if _kube_host:
+            url = "https://%s/oapi" % _kube_host
+            cafile = "/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+            try:
+                connection = urllib2.urlopen(url, cafile=cafile)
+                return connection.getcode() is 200
+            except Exception:
+                return False
         return False
 
     def run(self, provider_key=None, dry=False):
