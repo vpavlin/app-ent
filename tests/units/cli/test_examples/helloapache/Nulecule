@@ -17,6 +17,11 @@ graph:
         default: 80
     artifacts:
       docker:
-        - file://artifacts/docker/hello-apache-pod_run
+        - resource: file://artifacts/docker/hello-apache-pod_run
       kubernetes:
-        - file://artifacts/kubernetes/hello-apache-pod.json
+        - resource: file://artifacts/kubernetes/hello-apache-pod.json
+          params:
+            image:
+              - /spec/containers/0/image
+            hostport:
+              - /spec/containers/0/ports/0/hostPort

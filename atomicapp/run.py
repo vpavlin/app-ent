@@ -22,12 +22,17 @@ import os
 from string import Template
 
 import logging
+import anymarkup
 
 from nulecule_base import Nulecule_Base
 from utils import Utils, printStatus, printErrorStatus
-from constants import GLOBAL_CONF, DEFAULT_PROVIDER, MAIN_FILE, ANSWERS_FILE_SAMPLE_FORMAT
+from constants import GLOBAL_CONF, DEFAULT_PROVIDER, MAIN_FILE, \
+        ANSWERS_FILE_SAMPLE_FORMAT, PARAMS_KEY, RESOURCE_KEY, \
+        INHERIT_KEY
 from plugin import Plugin, ProviderFailedException
 from install import Install
+
+from jsonpointer import resolve_pointer, set_pointer, JsonPointerException
 
 logger = logging.getLogger(__name__)
 
@@ -131,12 +136,40 @@ class Run(object):
             else:
                 self._processComponent(component, graph_item)
 
-    def _applyTemplate(self, data, component):
+    def _applyPointers(self, data, component, params_map,  config):
+        '''
+        Tries to parse the artifact and returns None if that fails (which
+        probably means $ substitution is used). If it succeedes, it checks
+        if all params have pointer (no mixing, please!). Last step is to
+        replace all values in artifact according to given pointers.
+        '''
+
+        obj = anymarkup.parse(data)
+        if type(obj) != dict:
+            return None
+        params = self.nulecule_base.getParams(component)
+
+        for param in params:
+            name = param.get("name")
+            pointers = params_map.get(name)
+            if not pointers:
+                logger.warning("COuldn't find %s", name)
+                continue
+
+            for pointer in pointers:
+                try:
+                    resolve_pointer(obj, pointer)
+                    set_pointer(obj, pointer, config.get(name))
+                except JsonPointerException:
+                    logger.error("Couldn't replace param %s (%s) in %s artifact.", name, pointer, component)
+                    logger.debug("Artifact content: %s", obj)
+                    raise
+
+        return anymarkup.serialize(obj, format="json")
+
+    def _applyTemplate(self, data, component, config):
         template = Template(data)
-        if self.stop:
-            config = self.nulecule_base.getValues(component, skip_asking=True)
-        else:
-            config = self.nulecule_base.getValues(component)
+
         logger.debug("Config: %s ", config)
 
         output = None
@@ -163,6 +196,17 @@ class Run(object):
 
         return output
 
+    def _processArtifact(self, data, component, params_map):
+        if self.stop:
+            config = self.nulecule_base.getValues(component, skip_asking=True)
+        else:
+            config = self.nulecule_base.getValues(component)
+
+        if params_map:
+            return self._applyPointers(data, component, params_map, config)
+        else:
+            return self._applyTemplate(data, component, config)
+
     def _processArtifacts(self, component, provider, provider_name=None):
         if not provider_name:
             provider_name = str(provider)
@@ -177,18 +221,21 @@ class Run(object):
         data = None
 
         for artifact in artifacts[provider_name]:
-            if "inherit" in artifact:
-                logger.debug("Inheriting from %s", artifact["inherit"])
-                for item in artifact["inherit"]:
+            if INHERIT_KEY in artifact:
+                logger.debug("Inheriting from %s", artifact[INHERIT_KEY])
+                for item in artifact[INHERIT_KEY]:
                     inherited_artifacts, _ = self._processArtifacts(
                         component, provider, item)
                     artifact_provider_list += inherited_artifacts
                 continue
-            artifact_path = self.utils.sanitizePath(artifact)
+
+            params_map = self.nulecule_base.getParamsMap(artifact)
+            resource = self.nulecule_base.getResource(artifact)
+            artifact_path = self.utils.sanitizePath(resource)
             data = provider.loadArtifact(os.path.join(self.app_path, artifact_path))
 
             logger.debug("Templating artifact %s/%s", self.app_path, artifact_path)
-            data = self._applyTemplate(data, component)
+            data = self._processArtifact(data, component, params_map)
 
             artifact_dst = os.path.join(dst_dir, artifact_path)
 

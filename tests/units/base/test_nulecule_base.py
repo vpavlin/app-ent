@@ -18,7 +18,11 @@
 """
 
 import unittest
+import os
+
 from atomicapp.nulecule_base import Nulecule_Base
+from atomicapp.run import Run
+from atomicapp.constants import MAIN_FILE
 
 class TestNuleculeBase(unittest.TestCase):
 
@@ -26,6 +30,8 @@ class TestNuleculeBase(unittest.TestCase):
         self.nulecule_base = Nulecule_Base(
             dryrun=True,
             cli_provider="kubernetes")
+
+        self.examples_dir = os.path.dirname(__file__) + '/../cli/test_examples/'
 
     def tearDown(self):
         pass
@@ -41,3 +47,11 @@ class TestNuleculeBase(unittest.TestCase):
         self.nulecule_base.loadAnswers(data)
         config = self.nulecule_base.getValues(skip_asking=True)
         self.assertEqual(config["namespace"], "testing")
+
+    def test_check_artifacts(self):
+        apps = ["helloapache", "guestbook-go"]
+        for app in apps:
+            path = os.path.join(self.examples_dir, app, MAIN_FILE)
+            self.nulecule_base.target_path = os.path.join(self.examples_dir, app)
+            self.nulecule_base.loadMainfile(path)
+            self.nulecule_base.checkAllArtifacts()

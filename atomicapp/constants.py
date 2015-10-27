@@ -31,6 +31,9 @@ GLOBAL_CONF = "general"
 APP_ENT_PATH = "application-entity"
 
 PARAMS_KEY = "params"
+RESOURCE_KEY = "resource"
+INHERIT_KEY = "inherit"
+
 MAIN_FILE = "Nulecule"
 ANSWERS_FILE = "answers.conf"
 ANSWERS_FILE_SAMPLE = "answers.conf.sample"

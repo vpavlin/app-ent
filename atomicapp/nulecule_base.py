@@ -25,7 +25,8 @@ import subprocess
 
 from constants import MAIN_FILE, GLOBAL_CONF, DEFAULT_PROVIDER, PARAMS_KEY, \
     ANSWERS_FILE, DEFAULT_ANSWERS, ANSWERS_FILE_SAMPLE, \
-    __NULECULESPECVERSION__, ANSWERS_FILE_SAMPLE_FORMAT
+    __NULECULESPECVERSION__, ANSWERS_FILE_SAMPLE_FORMAT, \
+    RESOURCE_KEY, INHERIT_KEY
 
 from utils import Utils, printStatus, printErrorStatus
 
@@ -266,10 +267,22 @@ class Nulecule_Base(object):
             if name is key:
                 return item
 
+    def getParams(self, component):
+        return self.getComponent(component).get(PARAMS_KEY)
+
     def getArtifacts(self, component):
         graph_item = self.getComponent(component)
         if "artifacts" in graph_item:
             return graph_item["artifacts"]
+
+        return None
+
+    def getResource(self, artifact):
+        return artifact[RESOURCE_KEY] if isinstance(artifact, dict) else artifact
+
+    def getParamsMap(self, artifact):
+        if isinstance(artifact, dict):
+            return artifact.get(PARAMS_KEY)
 
         return None
 
@@ -285,17 +298,19 @@ class Nulecule_Base(object):
                     or provider in checked_providers:
                 continue
 
-            logger.debug("Provider: %s", provider)
+            logger.debug("Provider: %s, artifacts object: %s", provider, artifact_list)
             for artifact in artifact_list:
-                if "inherit" in artifact:
-                    self._checkInherit(component, artifact["inherit"], checked_providers)
+                if INHERIT_KEY in artifact:
+                    self._checkInherit(component, artifact[INHERIT_KEY], checked_providers)
                     continue
-                path = os.path.join(self.target_path, Utils.sanitizePath(artifact))
+
+                resource = self.getResource(artifact)
+                path = os.path.join(self.target_path, Utils.sanitizePath(resource))
                 if os.path.isfile(path):
-                    printStatus("Artifact %s: OK." % (artifact))
+                    printStatus("Artifact %s: OK." % (resource))
                 else:
-                    printErrorStatus("Missing artifact %s." % (artifact))
-                    raise Exception("Missing artifact %s (%s)" % (artifact, path))
+                    printErrorStatus("Missing artifact %s." % (resource))
+                    raise Exception("Missing artifact %s (%s)" % (resource, path))
             checked_providers.append(provider)
 
         return checked_providers

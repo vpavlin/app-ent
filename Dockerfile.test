@@ -1,6 +1,6 @@
 FROM fedora:22
 
-RUN dnf -y install python-pip python-mock && \
+RUN dnf -y install python-pip python-mock python-jsonpointer && \
     dnf -y clean all
 
 ADD . /opt/atomicapp
