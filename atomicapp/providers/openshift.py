@@ -18,12 +18,13 @@
 """
 
 from atomicapp.plugin import Provider, ProviderFailedException
-from atomicapp.utils import Utils, find_binary
+from atomicapp.utils import Utils, find_binary, printErrorStatus
 
 from collections import OrderedDict
 import os
 import anymarkup
 import subprocess
+from subprocess import Popen, PIPE
 from distutils.spawn import find_executable
 
 import logging
@@ -65,7 +66,18 @@ class OpenShiftProvider(Provider):
         if self.dryrun:
             logger.info("Calling: %s", " ".join(cmd))
         else:
-            subprocess.check_call(cmd)
+            try:
+                p = Popen(cmd, stdout=PIPE, stderr=PIPE)
+                stdout, stderr = p.communicate()
+                logger.debug("stdout = %s", stdout)
+                logger.debug("stderr = %s", stderr)
+                if stderr and stderr.strip() != "":
+                    raise Exception(str(stderr))
+
+                return stdout
+            except Exception:
+                printErrorStatus("cmd failed: " + " ".join(cmd))
+                raise
 
     def _processTemplate(self, path):
         cmd = [self.cli, "--config=%s" % self.config_file, "process", "-f", path]
