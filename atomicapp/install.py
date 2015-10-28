@@ -26,7 +26,7 @@ import subprocess
 import logging
 
 from nulecule_base import Nulecule_Base
-from utils import Utils, printStatus, printAnswerFile
+from utils import Utils, printStatus
 from constants import APP_ENT_PATH, MAIN_FILE, ANSWERS_FILE_SAMPLE_FORMAT
 
 logger = logging.getLogger(__name__)
@@ -117,7 +117,7 @@ class Install(object):
 
     def install(self):
         answerContent = self.nulecule_base.loadAnswers(self.answers_file)
-        printAnswerFile(json.dumps(answerContent))
+        logger.debug(json.dumps(answerContent))
 
         mainfile_dir = self.nulecule_base.app_path
         if not self.dryrun:
@@ -176,7 +176,7 @@ class Install(object):
         if self.nulecule_base.write_sample_answers:
             self.nulecule_base.writeAnswersSample()
 
-        printAnswerFile(json.dumps(answerContent))
+        logger.debug(json.dumps(answerContent))
         printStatus("Install Successful.")
         return None
 

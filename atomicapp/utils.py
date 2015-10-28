@@ -35,7 +35,7 @@ __all__ = ('Utils')
 
 logger = logging.getLogger(__name__)
 
-# Following Methods(printStatus, printErrorStatus, printAnswerFile)
+# Following Methods(printStatus, printErrorStatus)
 #  are required for Cockpit or thirdparty management tool integration
 #  DONOT change the atomicapp.status.* prefix in the logger method.
 
@@ -46,10 +46,6 @@ def printStatus(message):
 
 def printErrorStatus(message):
     logger.info("atomicapp.status.error.message=" + str(message))
-
-
-def printAnswerFile(message):
-    logger.info("atomicapp.status.answer.message=" + str(message))
 
 
 def find_binary(executable, path=None):
