@@ -129,5 +129,5 @@ There are two required labels for OpenShift to run an Atomic App.
 1. `io.openshift.generate.job=true`
   * identify the image as an executable job
   * run the container to allow the image to determine what OpenShift objects are created.
-1. `io.openshift.generate.token.as=env:TOKEN_ENV_VAR`
+1. `io.openshift.generate.token.as=env:TOKEN_ENV`
   * run the container with user token so `oc` commands can be run on behalf of the user from within the container pod.
