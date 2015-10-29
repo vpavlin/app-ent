@@ -30,3 +30,4 @@ VOLUME /atomicapp
 USER 1001
 
 ENTRYPOINT ["/usr/bin/atomicapp"]
+CMD ["run", "/atomicapp"]
