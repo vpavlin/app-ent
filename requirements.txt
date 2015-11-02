@@ -1,2 +1,3 @@
 anymarkup>=0.4.1
 lockfile==0.10.2
+python-setuptools
