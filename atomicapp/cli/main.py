@@ -33,7 +33,7 @@ from atomicapp.constants import \
     ANSWERS_FILE, __ATOMICAPPVERSION__, \
     __NULECULESPECVERSION__, ANSWERS_FILE_SAMPLE_FORMAT, \
     LOCK_FILE
-from atomicapp.utils import Utils
+from atomicapp.utils import Utils, printErrorStatus
 
 logger = logging.getLogger(__name__)
 
@@ -220,7 +220,7 @@ class CLI():
         except KeyboardInterrupt:
             pass
         except AlreadyLocked:
-            logger.error("Could not proceed - there is probably another instance of Atomic App running on this machine.")
+            printErrorStatus("Could not proceed - there is probably another instance of Atomic App running on this machine.")
         except Exception as ex:
             if args.verbose:
                 raise
