@@ -129,5 +129,18 @@ There are two required labels for OpenShift to run an Atomic App.
 1. `io.openshift.generate.job=true`
   * identify the image as an executable job
   * run the container to allow the image to determine what OpenShift objects are created.
-1. `io.openshift.generate.token.as=env:TOKEN_ENV_VAR`
+1. `io.openshift.generate.token.as=env:TOKEN_ENV`
   * run the container with user token so `oc` commands can be run on behalf of the user from within the container pod.
+
+**How it works**
+An Atomic App image may be run natively on OpenShift V3.
+
+![OpenShift integration diagram](/images/oc_atomicapp_integration.png)
+
+1. The Atomic App must have two LABELs. The file name of the token can be changed. This is the default. The `generate.job` tells OpenShift to simply run the image as a pod.
+
+        io.openshift.generate.job=true
+        io.openshift.generate.token.as=file:TOKEN_ENV
+1. The pod runs with no arguments. The environment variable `$TOKEN_ENV` identifies the file that contains the user token string. If the default file `/var/run/secrets/kubernetes.io/serviceaccount/token` is used then the CA certificate must be explicitely used with any OpenShift API calls. The CA certificate is `/var/run/secrets/kubernetes.io/serviceaccount/ca.crt`.
+1. Atomicapp is run in the pod. No arguments are passed in so the default atomicapp entrypoint/cmd is used. Any remote apps will be called in the same way, using `oc new-app <remote_atomicapp_image>`.
+1. Parameters may be specified in the user command `oc new-app <atomicapp_image> -p FOO=bar,BAR=foo`. These will be passed in as environment variables in the atomicapp pod.
