@@ -44,7 +44,7 @@ class DockerComposeProvider(Provider):
             cmd = "docker-compose -f {} up -d".format(artifact_path)
 
             if self.dryrun:
-                logger.info("DRY-RUN: %s" % cmd)
+                logger.info("DRY-RUN: %s", cmd)
             else:
                 subprocess.check_call(cmd.split(" "))
 
@@ -58,7 +58,7 @@ class DockerComposeProvider(Provider):
             cmd = "docker-compose -f {} stop".format(artifact_path)
 
             if self.dryrun:
-                logger.info("DRY-RUN: %s" % cmd)
+                logger.info("DRY-RUN: %s", cmd)
             else:
                 subprocess.check_call(cmd.split(" "))
 
@@ -68,7 +68,7 @@ class DockerComposeProvider(Provider):
                 data = anymarkup.parse(fp)
                 if not data:
                     logger.info(
-                        'Skipping empty compose YAML file: %s' % artifact_path)
+                        'Skipping empty compose YAML file: %s', artifact_path)
                     return True
             except Exception:
                 msg = "Error processing %s artifacts, Error: %s" % (
