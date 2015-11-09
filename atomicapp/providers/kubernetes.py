@@ -20,7 +20,6 @@
 import anymarkup
 import logging
 import os
-from subprocess import Popen, PIPE
 
 from atomicapp.plugin import Provider, ProviderFailedException
 from atomicapp.utils import printErrorStatus, Utils
@@ -107,18 +106,7 @@ class KubernetesProvider(Provider):
         if self.dryrun:
             logger.info("DRY-RUN: %s", " ".join(cmd))
         else:
-            try:
-                p = Popen(cmd, stdout=PIPE, stderr=PIPE)
-                stdout, stderr = p.communicate()
-                logger.debug("stdout = %s", stdout)
-                logger.debug("stderr = %s", stderr)
-                if stderr and stderr.strip() != "":
-                    raise Exception(str(stderr))
-
-                return stdout
-            except Exception:
-                printErrorStatus("cmd failed: " + " ".join(cmd))
-                raise
+            Utils.run_cmd(cmd)
 
     def process_k8s_artifacts(self):
         """Processes Kubernetes manifests files and checks if manifest under

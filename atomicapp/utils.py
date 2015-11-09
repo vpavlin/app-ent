@@ -30,7 +30,7 @@ import uuid
 from distutils.spawn import find_executable
 
 import logging
-
+from subprocess import Popen, PIPE
 from constants import (ANSWERS_FILE,
                        APP_ENT_PATH,
                        CACHE_DIR,
@@ -195,6 +195,36 @@ class Utils(object):
     def sanitizePath(path):
         if path.startswith("file://"):
             return path[7:]
+
+    @staticmethod
+    def run_cmd(cmd, args_str=None):
+        """
+        Runs a command with its arguments.
+
+        Args:
+            args_str (str): arguments to the command.
+
+        Returns:
+            string response output.
+            Might throw an Exception if stderr exists.
+        """
+        try:
+            p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE)
+            stdout, stderr = p.communicate(args_str)
+            logger.debug("stdout = %s", stdout)
+            logger.debug("stderr = %s", stderr)
+            """
+            stderr can be None.
+            We need to raise an exception for the stderr value
+            if the response is from Kubernetes or Openshift.
+            """
+            if stderr and stderr.strip() != "":
+                raise Exception(str(stderr))
+
+            return stdout
+        except Exception:
+            printErrorStatus("cmd failed: " + " ".join(cmd))
+            raise
 
     @staticmethod
     def askFor(what, info):

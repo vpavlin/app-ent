@@ -23,7 +23,6 @@ from atomicapp.utils import Utils, find_binary
 from collections import OrderedDict
 import os
 import anymarkup
-import subprocess
 from distutils.spawn import find_executable
 
 import logging
@@ -65,7 +64,7 @@ class OpenShiftProvider(Provider):
         if self.dryrun:
             logger.info("Calling: %s", " ".join(cmd))
         else:
-            subprocess.check_call(cmd)
+            Utils.run_cmd(cmd)
 
     def _processTemplate(self, path):
         cmd = [self.cli, "--config=%s" % self.config_file, "process", "-f", path]
@@ -73,7 +72,7 @@ class OpenShiftProvider(Provider):
         name = "config-%s" % os.path.basename(path)
         output_path = os.path.join(self.path, name)
         if self.cli and not self.dryrun:
-            output = subprocess.check_output(cmd)
+            output = Utils.run_cmd(cmd)
             logger.debug("Writing processed template to %s", output_path)
             with open(output_path, "w") as fp:
                 fp.write(output)
