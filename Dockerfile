@@ -18,7 +18,7 @@ ADD setup.py requirements.txt /opt/atomicapp/
 # lets install pip, and gcc for the native extensions
 # and remove all after use
 RUN yum -y install epel-release && \
-    yum install -y --setopt=tsflags=nodocs python-pip python-setuptools docker gcc && \
+    yum install -y --setopt=tsflags=nodocs GitPython python-pip python-setuptools docker gcc && \
     python setup.py install && \
     yum remove -y gcc cpp glibc-devel glibc-headers kernel-headers libmpc mpfr python-pip && \
     yum clean all

@@ -55,3 +55,4 @@ DEFAULT_ANSWERS = {
     }
 }
 PROVIDER_CONFIG_KEY = "providerconfig"
+DEFAULT_INDEX_IMAGE = "nulecule/index"

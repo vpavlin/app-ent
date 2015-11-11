@@ -36,6 +36,7 @@ from atomicapp.constants import (__ATOMICAPPVERSION__,
 from atomicapp.nulecule import NuleculeManager
 from atomicapp.nulecule.exceptions import NuleculeException
 from atomicapp.utils import Utils
+from atomicapp.index import Index
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +95,15 @@ def cli_stop(args):
         logger.error(e, exc_info=True)
         sys.exit(1)
 
+def cli_index(args):
+    argdict = args.__dict__
+    i = Index(argdict["dryrun"])
+    if argdict["index_action"] == "generate":
+        i.generate(argdict["location"])
+    elif argdict["index_action"] == "list":
+        i.list()
+    elif argdict["index_action"] == "info":
+        i.info(argdict["app_id"])
 
 class CLI():
 
@@ -242,6 +252,31 @@ class CLI():
 
         parser_stop.set_defaults(func=cli_stop)
 
+        parser_index = subparsers.add_parser("index")
+        index_parsers = parser_index.add_subparsers(dest="index_action")
+        
+        index_generate = index_parsers.add_parser("generate")
+        index_generate.add_argument(
+            "location",
+            help=(
+                "Path or Git repository link containing Nulecule applications "
+                "which will be part of the genrated index"))
+        index_generate.set_defaults(func=cli_index)
+        
+        index_list = index_parsers.add_parser("list")
+        index_list.add_argument(
+            "--format",
+            help=("Blah"))
+        index_list.set_defaults(func=cli_index)
+
+        index_info = index_parsers.add_parser("info")
+        index_info.add_argument(
+            "app_id",
+            help=("Id of an application listed in index."))
+        index_info.set_defaults(func=cli_index)
+
+           
+
     def run(self):
         self.set_arguments()
         args = self.parser.parse_args()
@@ -254,7 +289,7 @@ class CLI():
 
         lock = LockFile(os.path.join(Utils.getRoot(), LOCK_FILE))
         try:
-            lock.acquire(timeout=-1)
+            #lock.acquire(timeout=-1)
             args.func(args)
         except AttributeError:
             if hasattr(args, 'func'):
