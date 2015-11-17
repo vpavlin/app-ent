@@ -117,7 +117,7 @@ class Utils(object):
 
     @staticmethod
     def sanitizeName(app):
-        return app.replace("/", "-")
+        return app.replace("/", "-").replace(":", "-")
 
     @staticmethod
     def getNewAppCacheDir(image):
