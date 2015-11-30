@@ -2,10 +2,12 @@
 
 Requirements needed to run Atomic App.
 
+
 ## Python requirements
 
 * anymarkup >= 0.4.1
-* lockfile
+* lockfile >= 0.10.2
+* jsonpointer >= 1.10.0
 
 ## Non-Python requirements
 
@@ -13,6 +15,7 @@ __Atomic App Core:__
 
 * Docker
 * Atomic (after commit: c97e5d3255b85c715fbbb8e17945beffeefc2332)
+* Nulecule Spec 0.0.2 [link](https://github.com/projectatomic/nulecule)
 
 __Providers:__
 
