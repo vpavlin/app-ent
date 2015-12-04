@@ -178,8 +178,7 @@ class Nulecule(NuleculeBase):
             #        A component should not get access to all the variables,
             #        but only to variables it needs.
             component.load_config(config=copy.deepcopy(self.config),
-                                  ask=ask, skip_asking=skip_asking)
-            self.merge_config(self.config, component.config)
+                                  ask=False, skip_asking=True)
 
     def load_components(self, nodeps=False, dryrun=False):
         """
@@ -280,12 +279,14 @@ class NuleculeComponent(NuleculeBase):
         """
         Load config for the Nulecule component.
         """
-        super(NuleculeComponent, self).load_config(
-            config, ask=ask, skip_asking=skip_asking)
+        for key, value in self.params.items():
+            if value.startswith('$') and value[1:] in config.get(
+                    GLOBAL_CONF, {}):
+                config[GLOBAL_CONF][key] = config[GLOBAL_CONF][value[1:]]
         if isinstance(self._app, Nulecule):
-            self._app.load_config(config=copy.deepcopy(self.config),
+            self._app.load_config(config=copy.deepcopy(config),
                                   ask=ask, skip_asking=skip_asking)
-            self.merge_config(self.config, self._app.config)
+        self.config = config
 
     def load_external_application(self, dryrun=False, update=False):
         """
