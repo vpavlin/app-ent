@@ -58,8 +58,8 @@ class OpenShiftProvider(Provider):
             # Check if the required OpenShift config file is accessible.
             self.checkConfigFile()
 
-    def _callCli(self, path):
-        cmd = [self.cli, "--config=%s" % self.config_file, "create", "-f", path]
+    def _callCli(self, path, action="create"):
+        cmd = [self.cli, "--config=%s" % self.config_file, action, "-f", path]
 
         if self.dryrun:
             logger.info("Calling: %s", " ".join(cmd))
@@ -124,3 +124,16 @@ class OpenShiftProvider(Provider):
 
             k8s_file = os.path.join(self.path, kube_order[artifact])
             self._callCli(k8s_file)
+
+    def undeploy(self):
+        logger.info("Undeploying from OpenShift")
+        for artifact in self.artifacts:
+            data = None
+            artifact_path = os.path.join(self.path, artifact)
+            with open(artifact_path, "r") as fp:
+                data = anymarkup.parse(fp, force_types=None)
+            if "kind" in data:
+                if data["kind"].lower() == "template":
+                    raise NotImplementedError()
+            self._callCli(artifact_path, "stop")
+
