@@ -70,8 +70,8 @@ class DockerComposeProvider(Provider):
                     logger.info(
                         'Skipping empty compose YAML file: %s', artifact_path)
                     return True
-            except Exception:
+            except Exception as e:
                 msg = "Error processing %s artifacts, Error: %s" % (
-                    artifact_path)
+                    artifact_path, e)
                 printErrorStatus(msg)
                 raise
