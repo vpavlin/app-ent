@@ -107,8 +107,12 @@ class KubernetesProvider(Provider):
         if self.dryrun:
             logger.info("DRY-RUN: %s", " ".join(cmd))
         else:
-            ec, stdout, stderr = Utils.run_cmd(cmd, checkexitcode=True)
-            return stdout
+            try:
+                ec, stdout, stderr = Utils.run_cmd(cmd, checkexitcode=True)
+                return stdout
+            except Exception as e:
+                if not self.ignore_errors:
+                    raise e
 
     def process_k8s_artifacts(self):
         """Processes Kubernetes manifests files and checks if manifest under

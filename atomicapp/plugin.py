@@ -53,6 +53,7 @@ class Provider(object):
         self.config = config
         self.path = path
         self.dryrun = dryrun
+        self.ignore_errors = False
         if Utils.getRoot() == HOST_DIR:
             self.container = True
 
