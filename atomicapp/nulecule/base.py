@@ -279,12 +279,15 @@ class NuleculeComponent(NuleculeBase):
         """
         Load config for the Nulecule component.
         """
+        _config = {GLOBAL_CONF: {}} if self.source else config
         for key, value in self.params.items():
             if value.startswith('$') and value[1:] in config.get(
                     GLOBAL_CONF, {}):
-                config[GLOBAL_CONF][key] = config[GLOBAL_CONF][value[1:]]
+                _config[GLOBAL_CONF][key] = config[GLOBAL_CONF][value[1:]]
+            else:
+                _config[GLOBAL_CONF][key] = value
         if isinstance(self._app, Nulecule):
-            self._app.load_config(config=copy.deepcopy(config),
+            self._app.load_config(config=copy.deepcopy(_config),
                                   ask=ask, skip_asking=skip_asking)
         self.config = config
 
