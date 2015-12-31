@@ -199,8 +199,8 @@ class Nulecule(NuleculeBase):
             node_name = node[NAME_KEY]
             source = Utils.getSourceImage(node)
             component = NuleculeComponent(
-                node_name, self.basepath, source,
-                node.get(PARAMS_KEY), node.get(ARTIFACTS_KEY))
+                self._get_component_namespace(node_name), self.basepath,
+                source, node.get(PARAMS_KEY), node.get(ARTIFACTS_KEY))
             component.load(nodeps, dryrun)
             components.append(component)
         self.components = components
@@ -221,6 +221,12 @@ class Nulecule(NuleculeBase):
         """
         for component in self.components:
             component.render(provider_key=provider_key, dryrun=dryrun)
+
+    def _get_component_namespace(self, component_name):
+        current_namespace = '' if self.namespace == GLOBAL_CONF else self.namespace
+        return (
+            '%s:%s' % (current_namespace, component_name)
+            if current_namespace else component_name)
 
 
 class NuleculeComponent(NuleculeBase):
