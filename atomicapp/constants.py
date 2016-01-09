@@ -41,6 +41,7 @@ DEFAULTNAME_KEY = "default"
 PROVIDER_KEY = "provider"
 NAMESPACE_KEY = "namespace"
 REQUIREMENTS_KEY = "requirements"
+DEFAULTPROVIDER_KEY = 'defaultprovider'
 
 # Nulecule spec terminology vs the function within /providers
 REQUIREMENT_FUNCTIONS = {
@@ -61,7 +62,6 @@ DEFAULT_CONTAINER_NAME = "atomic"
 DEFAULT_NAMESPACE = "default"
 DEFAULT_ANSWERS = {
     "general": {
-        "provider": DEFAULT_PROVIDER,
         "namespace": DEFAULT_NAMESPACE
     }
 }
