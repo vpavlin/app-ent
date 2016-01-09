@@ -461,7 +461,11 @@ class OpenShiftProvider(Provider):
             if self.dryrun:
                 logger.info("DRY-RUN: DELETE %s", url)
             else:
-                self.oc.delete(url)
+                try:
+                    self.oc.delete(url)
+                except Exception as e:
+                    if not self.ignore_errors:
+                        raise e
 
     def _process_artifacts(self):
         """
