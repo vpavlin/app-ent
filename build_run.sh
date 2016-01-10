@@ -21,6 +21,6 @@ docker build --rm --tag $USERNAME/$IMAGE_NAME --file Dockerfiles.${WHAT}/Dockerf
 
 #doesn't really make sense to run it
 #test
-#docker run -it --privileged -v /run:/run -v /:/host -v `pwd`:/application-entity $USERNAME/atomicapp-run /bin/bash
+#docker run -it --privileged -v /var/run:/var/run -v /var/lock:/var/lock -v /:/host -v `pwd`:/application-entity $USERNAME/atomicapp-run /bin/bash
 #run
-#docker run -dt --privileged -v /run:/run -v /:/host -v `pwd`:/application-entity $USERNAME/atomicapp-run
+#docker run -dt --privileged -v /var/run:/var/run -v /var/lock:/var/lock -v /:/host -v `pwd`:/application-entity $USERNAME/atomicapp-run

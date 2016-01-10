@@ -6,4 +6,4 @@ if [ "$1" == "-h" -o "$1" == "--help" ]; then
     echo "Current directory (`pwd`) is mounted to the container as /atomicapp"
 fi
 
-docker run -it --rm --net=host --privileged -v /run:/run -v /:/host -v `pwd`:/atomicapp projectatomic/atomicapp:dev $@
+docker run -it --rm --net=host --privileged -v /var/run:/var/run -v /var/lock:/var/lock -v /:/host -v `pwd`:/atomicapp projectatomic/atomicapp:dev $@
