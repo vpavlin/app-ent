@@ -14,6 +14,9 @@ LABEL io.projectatomic.nulecule.atomicappversion=${ATOMICAPPVERSION} \
       STOP="docker run -it --rm \${OPT1} --privileged -v `pwd`:/atomicapp -v /run:/run -v /:/host --net=host --name \${NAME} -e NAME=\${NAME} -e IMAGE=\${IMAGE} \${IMAGE} -v \${OPT2} stop \${OPT3}" \
       INSTALL="docker run -it --rm \${OPT1} --privileged -v `pwd`:/atomicapp -v /run:/run -v /:/host --name \${NAME} -e NAME=\${NAME} -e IMAGE=\${IMAGE} \${IMAGE} -v \${OPT2} install \${OPT3} \${IMAGE}"
 
+RUN dnf install -y atomicapp-${ATOMICAPPVERSION} ${TESTING} --setopt=tsflags=nodocs && \
+    dnf clean all
+
 WORKDIR /atomicapp
 
 # If a volume doesn't get mounted over /atomicapp (like when running in 
@@ -25,10 +28,6 @@ RUN chmod 777 /atomicapp
 # openshift pod) then open up permissions so the lock file can be
 # created by non-root.
 RUN chmod 777 /run/lock
-
-RUN dnf install -y atomicapp-${ATOMICAPPVERSION} ${TESTING} --setopt=tsflags=nodocs && \
-    dnf clean all
-
 
 # the entrypoint
 ENTRYPOINT ["/usr/bin/atomicapp"]
