@@ -49,7 +49,7 @@ class Marathon(Provider):
         logger.debug("marathon_api = %s", self.marathon_api)
         self._process_artifacts()
 
-    def deploy(self):
+    def run(self):
         """ Deploys the app by given resource manifests.
         """
         for artifact in self.marathon_artifacts:
@@ -72,7 +72,7 @@ class Marathon(Provider):
                 logger.error(msg)
                 raise ProviderFailedException(msg)
 
-    def undeploy(self):
+    def stop(self):
         """ Undeploys the app by given resource manifests.
         Undeploy operation deletes Marathon apps from cluster.
         """

@@ -77,7 +77,7 @@ class DockerProvider(Provider):
         else:
             return dict((line, 1) for line in subprocess.check_output(docker_cmd, shell=True).splitlines())
 
-    def deploy(self):
+    def run(self):
         logger.info("Deploying to provider: Docker")
         for container in self._get_containers():
             if re.match("%s_+%s+_+[a-zA-Z0-9]{12}" % (self.namespace, self.image), container):
@@ -103,7 +103,7 @@ class DockerProvider(Provider):
             else:
                 subprocess.check_call(cmd)
 
-    def undeploy(self):
+    def stop(self):
         logger.info("Undeploying to provider: Docker")
         artifact_names = list()
 
