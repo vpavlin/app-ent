@@ -239,7 +239,7 @@ class OpenShiftProvider(Provider):
             return artifact["metadata"]["namespace"]
         return self.namespace
 
-    def deploy(self):
+    def run(self):
         logger.debug("Deploying to OpenShift")
         # TODO: remove running components if one component fails issue:#428
         for kind, objects in self.openshift_artifacts.iteritems():
@@ -252,7 +252,7 @@ class OpenShiftProvider(Provider):
                     continue
                 self.oc.deploy(url, artifact)
 
-    def undeploy(self):
+    def stop(self):
         """
         Undeploy application.
 

@@ -279,7 +279,7 @@ class NuleculeComponent(NuleculeBase):
         provider_key, provider = self.get_provider(provider_key, dryrun)
         provider.artifacts = self.rendered_artifacts.get(provider_key, [])
         provider.init()
-        provider.deploy()
+        provider.run()
 
     def stop(self, provider_key=None, dryrun=False):
         """
@@ -291,7 +291,7 @@ class NuleculeComponent(NuleculeBase):
         provider_key, provider = self.get_provider(provider_key, dryrun)
         provider.artifacts = self.rendered_artifacts.get(provider_key, [])
         provider.init()
-        provider.undeploy()
+        provider.stop()
 
     def load_config(self, config=None, ask=False, skip_asking=False):
         """

@@ -167,7 +167,7 @@ class KubernetesProvider(Provider):
 
         self._call(cmd)
 
-    def deploy(self):
+    def run(self):
         """Deploys the app by given resource manifests.
         """
         logger.info("Deploying to Kubernetes")
@@ -184,7 +184,7 @@ class KubernetesProvider(Provider):
                 cmd.append("--kubeconfig=%s" % self.config_file)
             self._call(cmd)
 
-    def undeploy(self):
+    def stop(self):
         """Undeploys the app by given resource manifests.
         Undeploy operation first scale down the replicas to 0 and then deletes
         the resource from cluster.
