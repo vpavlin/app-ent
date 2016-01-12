@@ -133,3 +133,38 @@ class DockerProvider(Provider):
                     logger.info("DRY-RUN: STOPPING CONTAINER %s", " ".join(cmd))
                 else:
                     subprocess.check_call(cmd)
+
+    def uninstall(self):
+        logger.info("Removing containers from provider: Docker")
+        artifact_names = list()
+
+        # Gather the list of containers within /artifacts/docker
+        for artifact in self.artifacts:
+            artifact_path = os.path.join(self.path, artifact)
+            label_run = None
+            with open(artifact_path, "r") as fp:
+                label_run = fp.read().strip()
+            run_args = label_run.split()
+
+            # If any artifacts are labelled by name, add it to a container dict list
+            if '--name' in run_args:
+                artifact_names.append(run_args[run_args.index('--name') + 1])
+                logger.debug("artifact cnames: %s", artifact_names)
+
+        # Regex checks for matching container name and kills it. ex. atomic_mariadb-atomicapp-app_9dfb369ed2a0
+        for container in self._get_containers():
+            if artifact_names:
+                m = [i for i, x in enumerate(artifact_names) if x == container]
+            else:
+                m = re.match("%s_+%s+_+[a-zA-Z0-9]{12}" % (self.namespace, self.image), container)
+            if m:
+                logger.info("Removing container: %s", container)
+                cmd = ["docker", "rm", "-f", container]
+                if self.dryrun:
+                    logger.info("DRY-RUN: REMOVING CONTAINER %s", " ".join(cmd))
+                else:
+                    subprocess.check_call(cmd)
+
+    def install(self):
+        logger.error("Function not implemented for Docker. Doing nothing.")
+        raise NotImplementedError
