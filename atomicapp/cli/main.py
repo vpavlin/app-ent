@@ -234,6 +234,43 @@ class CLI():
             choices=['ini', 'json', 'xml', 'yaml'],
             help="The format for the answers.conf.sample file. Default: %s" % ANSWERS_FILE_SAMPLE_FORMAT)
 
+        # === "install" SUBPARSER ===
+        install_subparser = toplevel_subparsers.add_parser(
+            "install", parents=[globals_parser])
+        install_subparser.add_argument(
+            "-a",
+            "--answers",
+            dest="answers",
+            help="Path to %s" % ANSWERS_FILE)
+        install_subparser.add_argument(
+            "--write-answers",
+            dest="answers_output",
+            help="A file which will contain anwsers provided in interactive mode")
+        install_subparser.add_argument(
+            "--provider",
+            dest="cli_provider",
+            choices=PROVIDERS,
+            help="The provider to use. Overrides provider value in answerfile.")
+        install_subparser.add_argument(
+            "--ask",
+            default=False,
+            action="store_true",
+            help="Ask for params even if the defaul value is provided")
+        install_subparser.add_argument(
+            "app_spec",
+            help=(
+                "Application to install. This is a container image or a path "
+                "that contains the metadata describing the whole application."))
+        install_subparser.add_argument(
+            "--destination",
+            dest="destination",
+            default=None,
+            help=('''
+                Destination directory for install. This defaults to a
+                directory under %s. Specify 'none' to not persist
+                files and have them cleaned up when finished.''' % CACHE_DIR))
+        install_subparser.set_defaults(func=cli_install)
+
         # === "run" SUBPARSER ===
         run_subparser = toplevel_subparsers.add_parser(
             "run", parents=[globals_parser])
@@ -270,42 +307,6 @@ class CLI():
                 directory under %s. Specify 'none' to not persist
                 files and have them cleaned up when finished.''' % CACHE_DIR))
         run_subparser.set_defaults(func=cli_run)
-
-        # === "install" SUBPARSER ===
-        install_subparser = toplevel_subparsers.add_parser(
-            "install", parents=[globals_parser])
-        install_subparser.add_argument(
-            "-a",
-            "--answers",
-            dest="answers",
-            help="Path to %s" % ANSWERS_FILE)
-        install_subparser.add_argument(
-            "--no-deps",
-            dest="nodeps",
-            default=False,
-            action="store_true",
-            help="Skip pulling dependencies of the app")
-        install_subparser.add_argument(
-            "-u",
-            "--update",
-            dest="update",
-            default=False,
-            action="store_true",
-            help="Re-pull images and overwrite existing files")
-        install_subparser.add_argument(
-            "--destination",
-            dest="destination",
-            default=None,
-            help=('''
-                Destination directory for install. This defaults to a
-                directory under %s. Specify 'none' to not persist
-                files and have them cleaned up when finished.''' % CACHE_DIR))
-        install_subparser.add_argument(
-            "app_spec",
-            help=(
-                "Application to run. This is a container image or a path "
-                "that contains the metadata describing the whole application."))
-        install_subparser.set_defaults(func=cli_install)
 
         # === "stop" SUBPARSER ===
         stop_subparser = toplevel_subparsers.add_parser(
