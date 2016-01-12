@@ -125,6 +125,29 @@ def cli_stop(args):
         sys.exit(1)
 
 
+def cli_fetch(args):
+    try:
+        argdict = args.__dict__
+        destination = argdict['destination']
+        nm = NuleculeManager(app_spec=argdict['app_spec'],
+                             destination=destination,
+                             answers_file=argdict['answers'])
+        nm.fetch(**argdict)
+        # Clean up the files if the user asked us to. Otherwise
+        # notify the user where they can manage the application
+        if destination and destination.lower() == 'none':
+            Utils.rm_dir(nm.app_path)
+        else:
+            print_app_location(nm.app_path)
+        sys.exit(0)
+    except NuleculeException as e:
+        logger.error(e)
+        sys.exit(1)
+    except Exception as e:
+        logger.error(e, exc_info=True)
+        sys.exit(1)
+
+
 class CLI():
 
     def __init__(self):
@@ -306,6 +329,42 @@ class CLI():
             "app_spec",
             help='The name of a container image containing an Atomic App.')
         gena_subparser.set_defaults(func=cli_genanswers)
+
+        # === "fetch" SUBPARSER ===
+        fetch_subparser = toplevel_subparsers.add_parser(
+            "fetch", parents=[globals_parser])
+        fetch_subparser.add_argument(
+            "-a",
+            "--answers",
+            dest="answers",
+            help="Path to %s" % ANSWERS_FILE)
+        fetch_subparser.add_argument(
+            "--no-deps",
+            dest="nodeps",
+            default=False,
+            action="store_true",
+            help="Skip pulling dependencies of the app")
+        fetch_subparser.add_argument(
+            "-u",
+            "--update",
+            dest="update",
+            default=False,
+            action="store_true",
+            help="Re-pull images and overwrite existing files")
+        fetch_subparser.add_argument(
+            "--destination",
+            dest="destination",
+            default=None,
+            help=('''
+                Destination directory for fetch. This defaults to a
+                directory under %s. Specify 'none' to not persist
+                files and have them cleaned up when finished.''' % CACHE_DIR))
+        fetch_subparser.add_argument(
+            "app_spec",
+            help=(
+                "Application to run. This is a container image or a path "
+                "that contains the metadata describing the whole application."))
+        fetch_subparser.set_defaults(func=cli_fetch)
 
         # Some final fixups.. We want the "help" from the global
         # parser to be output when someone runs 'atomicapp --help'
