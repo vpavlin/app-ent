@@ -192,9 +192,14 @@ class Nulecule(NuleculeBase):
             # FIXME: Find a better way to expose config data to components.
             #        A component should not get access to all the variables,
             #        but only to variables it needs.
-            component.load_config(config=copy.deepcopy(self.config),
-                                  ask=ask, skip_asking=skip_asking)
-            self.merge_config(self.config, component.config)
+            if isinstance(component.params, dict):
+                component.load_config(config=copy.deepcopy(self.config),
+                                      ask=False, skip_asking=True)
+            else:
+                # FIXME: support old style component params list
+                component.load_config(config=copy.deepcopy(self.config),
+                                      ask=ask, skip_asking=skip_asking)
+                self.merge_config(self.config, component.config)
 
     def load_components(self, nodeps=False, dryrun=False):
         """
@@ -215,8 +220,8 @@ class Nulecule(NuleculeBase):
             node_name = node[NAME_KEY]
             source = Utils.getSourceImage(node)
             component = NuleculeComponent(
-                node_name, self.basepath, source,
-                node.get(PARAMS_KEY), node.get(ARTIFACTS_KEY))
+                self._get_component_namespace(node_name), self.basepath,
+                source, node.get(PARAMS_KEY), node.get(ARTIFACTS_KEY))
             component.load(nodeps, dryrun)
             components.append(component)
         self.components = components
@@ -237,6 +242,12 @@ class Nulecule(NuleculeBase):
         """
         for component in self.components:
             component.render(provider_key=provider_key, dryrun=dryrun)
+
+    def _get_component_namespace(self, component_name):
+        current_namespace = '' if self.namespace == GLOBAL_CONF else self.namespace
+        return (
+            '%s:%s' % (current_namespace, component_name)
+            if current_namespace else component_name)
 
 
 class NuleculeComponent(NuleculeBase):
@@ -297,12 +308,26 @@ class NuleculeComponent(NuleculeBase):
         """
         Load config for the Nulecule component.
         """
-        super(NuleculeComponent, self).load_config(
-            config, ask=ask, skip_asking=skip_asking)
-        if isinstance(self._app, Nulecule):
-            self._app.load_config(config=copy.deepcopy(self.config),
-                                  ask=ask, skip_asking=skip_asking)
-            self.merge_config(self.config, self._app.config)
+        if isinstance(self.params, dict):
+            _config = {GLOBAL_CONF: {}} if self.source else config
+            for key, value in self.params.items():
+                if value.startswith('$') and value[1:] in config.get(
+                        GLOBAL_CONF, {}):
+                    _config[GLOBAL_CONF][key] = config[GLOBAL_CONF][value[1:]]
+                else:
+                    _config[GLOBAL_CONF][key] = value
+            if isinstance(self._app, Nulecule):
+                self._app.load_config(config=copy.deepcopy(_config),
+                                      ask=ask, skip_asking=skip_asking)
+            self.config = config
+        else:
+            # FIXME: Support old style component params list
+            super(NuleculeComponent, self).load_config(
+                config, ask=ask, skip_asking=skip_asking)
+            if isinstance(self._app, Nulecule):
+                self._app.load_config(config=copy.deepcopy(self.config),
+                                      ask=ask, skip_asking=skip_asking)
+                self.merge_config(self.config, self._app.config)
 
     def load_external_application(self, dryrun=False, update=False):
         """
