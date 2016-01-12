@@ -125,6 +125,20 @@ def cli_stop(args):
         sys.exit(1)
 
 
+def cli_uninstall(args):
+    try:
+        argdict = args.__dict__
+        nm = NuleculeManager(app_spec=argdict['app_spec'])
+        nm.uninstall(**argdict)
+        sys.exit(0)
+    except NuleculeException as e:
+        logger.error(e)
+        sys.exit(1)
+    except Exception as e:
+        logger.error(e, exc_info=True)
+        sys.exit(1)
+
+
 def cli_fetch(args):
     try:
         argdict = args.__dict__
@@ -322,6 +336,21 @@ class CLI():
                 Path to the directory where the Atomic App is installed
                 that is to be stopped.'''))
         stop_subparser.set_defaults(func=cli_stop)
+
+        # === "uninstall" SUBPARSER ===
+        uninstall_subparser = toplevel_subparsers.add_parser(
+            "uninstall", parents=[globals_parser])
+        uninstall_subparser.add_argument(
+            "--provider",
+            dest="cli_provider",
+            choices=PROVIDERS,
+            help="The provider to use. Overrides provider value in answerfile.")
+        uninstall_subparser.add_argument(
+            "app_spec",
+            help=('''
+                Path to the directory where the Atomic App is installed
+                that is to be uninstallped.'''))
+        uninstall_subparser.set_defaults(func=cli_uninstall)
 
         # === "genanswers" SUBPARSER ===
         gena_subparser = toplevel_subparsers.add_parser(

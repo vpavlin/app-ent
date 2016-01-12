@@ -169,7 +169,6 @@ class NuleculeManager(object):
             self.nulecule.config, None)
         self._write_answers(answers_file, answers, answers_format)
 
-
     def fetch(self, nodeps=False, update=False, dryrun=False,
               answers_format=ANSWERS_FILE_SAMPLE_FORMAT, **kwargs):
         """
@@ -319,10 +318,16 @@ class NuleculeManager(object):
         self.nulecule.render(cli_provider, dryrun=dryrun)
         self.nulecule.stop(cli_provider, dryrun)
 
-    def uninstall(self):
-        # For future use
-        self.stop()
-        self.nulecule.uninstall()
+    def uninstall(self, cli_provider, **kwargs):
+        self.answers = Utils.loadAnswers(
+            os.path.join(self.app_path, ANSWERS_RUNTIME_FILE))
+
+        dryrun = kwargs.get('dryrun') or False
+        self.nulecule = Nulecule.load_from_path(
+            self.app_path, config=self.answers, dryrun=dryrun)
+        self.nulecule.load_config(config=self.answers)
+        self.nulecule.render(cli_provider, dryrun=dryrun)
+        self.nulecule.uninstall(cli_provider, dryrun)
 
     def clean(self, force=False):
         # For future use

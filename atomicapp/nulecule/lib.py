@@ -107,5 +107,5 @@ class NuleculeBase(object):
     def install(self, provider_key=None, dry=False):
         raise NotImplementedError
 
-    def uninstall(self):
+    def uninstall(self, provider):
         raise NotImplementedError

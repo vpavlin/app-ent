@@ -194,10 +194,11 @@ class Nulecule(NuleculeBase):
         for component in self.components:
             component.stop(provider_key, dryrun)
 
-    # TODO: NOT YET IMPLEMENTED
-    def uninstall(self):
+    def uninstall(self, provider_key=None, dryrun=False):
+        provider_key, provider = self.get_provider(provider_key, dryrun)
+        # uninstall the Nulecule application
         for component in self.components:
-            component.uninstall()
+            component.uninstall(provider_key, dryrun)
 
     def load_config(self, config=None, ask=False, skip_asking=False):
         """
@@ -319,6 +320,18 @@ class NuleculeComponent(NuleculeBase):
         provider.artifacts = self.rendered_artifacts.get(provider_key, [])
         provider.init()
         provider.install()
+
+    def uninstall(self, provider_key, dryrun=False):
+        """
+        Run the Nulecule component with the specified provider,
+        """
+        if self._app:
+            self._app.run(provider_key, dryrun)
+            return
+        provider_key, provider = self.get_provider(provider_key, dryrun)
+        provider.artifacts = self.rendered_artifacts.get(provider_key, [])
+        provider.init()
+        provider.uninstall()
 
     def stop(self, provider_key=None, dryrun=False):
         """
