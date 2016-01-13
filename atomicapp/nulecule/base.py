@@ -150,6 +150,33 @@ class Nulecule(NuleculeBase):
         for component in self.components:
             component.run(provider_key, dryrun)
 
+    def install(self, provider_key=None, dryrun=False):
+        """
+        Installs a nulecule application.
+
+        Args:
+            provider_key (str): Provider to use for running Nulecule
+                                application
+            dryrun (bool): Do not make changes to host when True
+
+        Returns:
+            None
+        """
+        provider_key, provider = self.get_provider(provider_key, dryrun)
+
+        # Process preliminary requirements
+        # Pass configuration, path of the app, graph, provider as well as dry-run
+        # for provider init()
+        if REQUIREMENTS_KEY in self.graph[0]:
+            logger.debug("Requirements key detected. Running action.")
+            r = Requirements(self.config, self.basepath, self.graph[0][REQUIREMENTS_KEY],
+                             provider_key, dryrun)
+            r.install()
+
+        # Process components
+        for component in self.components:
+            component.install(provider_key, dryrun)
+
     def stop(self, provider_key=None, dryrun=False):
         """
         Stop the Nulecule application.
@@ -167,10 +194,11 @@ class Nulecule(NuleculeBase):
         for component in self.components:
             component.stop(provider_key, dryrun)
 
-    # TODO: NOT YET IMPLEMENTED
-    def uninstall(self):
+    def uninstall(self, provider_key=None, dryrun=False):
+        provider_key, provider = self.get_provider(provider_key, dryrun)
+        # uninstall the Nulecule application
         for component in self.components:
-            component.uninstall()
+            component.uninstall(provider_key, dryrun)
 
     def load_config(self, config=None, ask=False, skip_asking=False):
         """
@@ -279,7 +307,31 @@ class NuleculeComponent(NuleculeBase):
         provider_key, provider = self.get_provider(provider_key, dryrun)
         provider.artifacts = self.rendered_artifacts.get(provider_key, [])
         provider.init()
-        provider.deploy()
+        provider.run()
+
+    def install(self, provider_key, dryrun=False):
+        """
+        Run the Nulecule component with the specified provider,
+        """
+        if self._app:
+            self._app.run(provider_key, dryrun)
+            return
+        provider_key, provider = self.get_provider(provider_key, dryrun)
+        provider.artifacts = self.rendered_artifacts.get(provider_key, [])
+        provider.init()
+        provider.install()
+
+    def uninstall(self, provider_key, dryrun=False):
+        """
+        Run the Nulecule component with the specified provider,
+        """
+        if self._app:
+            self._app.run(provider_key, dryrun)
+            return
+        provider_key, provider = self.get_provider(provider_key, dryrun)
+        provider.artifacts = self.rendered_artifacts.get(provider_key, [])
+        provider.init()
+        provider.uninstall()
 
     def stop(self, provider_key=None, dryrun=False):
         """
@@ -291,7 +343,7 @@ class NuleculeComponent(NuleculeBase):
         provider_key, provider = self.get_provider(provider_key, dryrun)
         provider.artifacts = self.rendered_artifacts.get(provider_key, [])
         provider.init()
-        provider.undeploy()
+        provider.stop()
 
     def load_config(self, config=None, ask=False, skip_asking=False):
         """

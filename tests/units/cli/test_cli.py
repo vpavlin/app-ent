@@ -71,13 +71,13 @@ class TestCli(unittest.TestCase):
 
         assert exec_info.value.code == 0
 
-    def test_install_helloapache_app(self):
+    def test_fetch_helloapache_app(self):
         command = [
             "main.py",
             "--verbose",
             "--answers-format=json",
             "--dry-run",
-            "install",
+            "fetch",
             self.examples_dir + 'helloapache/'
         ]
 
@@ -119,13 +119,13 @@ class TestCli(unittest.TestCase):
 
         assert exec_info.value.code == 0
 
-    def test_install_helloapache_app_docker(self):
+    def test_fetch_helloapache_app_docker(self):
         command = [
             "main.py",
             "--verbose",
             "--answers-format=json",
             "--dry-run",
-            "install",
+            "fetch",
             self.examples_dir + 'helloapache/'
         ]
 

@@ -131,7 +131,7 @@ class KubernetesProvider(Provider):
                 apath = os.path.join(self.path, artifact)
                 raise ProviderFailedException("Malformed kube file: %s" % apath)
 
-    def _resource_identity(self, path):
+    def _resource_identity(self, path, section, param):
         """Finds the Kubernetes resource name / identity from resource manifest
         and raises if manifest is not supported.
 
@@ -143,7 +143,7 @@ class KubernetesProvider(Provider):
         """
         data = anymarkup.parse_file(path)
         if data["apiVersion"] == "v1":
-            return data["metadata"]["name"]
+            return data[section][param]
         elif data["apiVersion"] in ["v1beta3", "v1beta2", "v1beta1"]:
             msg = ("%s is not supported API version, update Kubernetes "
                    "artifacts to v1 API version. Error in processing "
@@ -152,13 +152,21 @@ class KubernetesProvider(Provider):
         else:
             raise ProviderFailedException("Malformed kube file: %s" % path)
 
-    def _scale_replicas(self, path, replicas=0):
+    def _scale_replicas(self, path, replicas=None):
         """Scales replicationController to specified replicas size
 
         :arg path: Path to replicationController manifest
         :arg replicas: Replica size to scale to.
+
+        If replicas is not specified, atomicapp will try to identify what is
+        already in the artifact file.
         """
-        rname = self._resource_identity(path)
+
+        # if replicas are zero, scale to whatever is in the artifact file
+        if replicas is None:
+            replicas = self._resource_identity(path, "spec", "replicas")
+
+        rname = self._resource_identity(path, "metadata", "name")
         cmd = [self.kubectl, "scale", "rc", rname,
                "--replicas=%s" % str(replicas),
                "--namespace=%s" % self.namespace]
@@ -167,29 +175,104 @@ class KubernetesProvider(Provider):
 
         self._call(cmd)
 
-    def deploy(self):
-        """Deploys the app by given resource manifests.
+    def _modify_artifact_spec(self, path, param, value):
         """
-        logger.info("Deploying to Kubernetes")
+        Dirty way of opening the artifact file, modifying a param in spec, then
+        returning it back in the original format as well as the suffix that was
+        detected.
+        """
+        if path.endswith(('.yml', '.yaml')):
+            data = Utils.fileToFormat(path, 'yaml')
+            data['spec'][param] = value
+            return anymarkup.serialize(data, 'yaml'), '.yaml'
+        elif path.endswith('.json'):
+            data = Utils.fileToFormat(path, 'json')
+            data['spec'][param] = value
+            return anymarkup.serialize(data, 'json'), '.json'
+        else:
+            raise ProviderFailedException("Unable to detect format of artifact file")
+
+    def install(self):
+        """Installs the app to Kubernetes
+        If a Pod is detected, we do not run it
+        If a Replication Controller is detected. We launch it and scale to 0
+        All other artifacts (ex. persistentVolumeClaim) are ran
+        """
+        logger.info("Installing app to Kubernetes")
+
         self.process_k8s_artifacts()
 
         for kind, artifact in self.k8s_manifests:
             if not artifact:
                 continue
 
-            k8s_file = os.path.join(self.path, artifact)
+            if kind in ["po", "Pod", "pod"]:
+                logger.warning("Pods will NOT be ran during installation.")
+                continue
 
-            cmd = [self.kubectl, "create", "-f", k8s_file, "--namespace=%s" % self.namespace]
+            path = os.path.join(self.path, artifact)
+
+            # If a replicationController is detected we will change to replicas
+            # of 0 and write to a tmp file with the modified json/yaml file.
+            # Then change the file we will be running to the tmp one :)
+            if kind in ["ReplicationController", "rc", "replicationcontroller"]:
+                data, suffix = self._modify_artifact_spec(path, 'replicas', 0)
+                path = Utils.getTmpFile(data, suffix)
+
+            cmd = [self.kubectl, "create", "-f", path, "--namespace=%s" % self.namespace]
             if self.config_file:
                 cmd.append("--kubeconfig=%s" % self.config_file)
             self._call(cmd)
 
-    def undeploy(self):
-        """Undeploys the app by given resource manifests.
-        Undeploy operation first scale down the replicas to 0 and then deletes
-        the resource from cluster.
+    def uninstall(self):
+        """Uninstalls the app on Kubernetes
+        Completely deletes all artifacts from Kubernetes
         """
-        logger.info("Undeploying from Kubernetes")
+        logger.info("Uninstalling from Kubernetes")
+        self.process_k8s_artifacts()
+
+        for kind, artifact in self.k8s_manifests:
+            if not artifact:
+                continue
+
+            path = os.path.join(self.path, artifact)
+
+            cmd = [self.kubectl, "delete", "-f", path, "--namespace=%s" % self.namespace]
+            if self.config_file:
+                cmd.append("--kubeconfig=%s" % self.config_file)
+            self._call(cmd)
+
+    def run(self):
+        """Runs the app to Kubernetes
+        If a Pod is detected, we run it
+        If a Replication Controller is detected, we scale to N in the artifact
+        All other artifacts are ignored as they are presumed to be ran during the
+        installation phase.
+        """
+        self.process_k8s_artifacts()
+
+        for kind, artifact in self.k8s_manifests:
+            if not artifact:
+                continue
+
+            path = os.path.join(self.path, artifact)
+
+            if kind in ["po", "Pod", "pod"]:
+                cmd = [self.kubectl, "create", "-f", path, "--namespace=%s" % self.namespace]
+                if self.config_file:
+                    cmd.append("--kubeconfig=%s" % self.config_file)
+                self._call(cmd)
+            elif kind in ["ReplicationController", "rc", "replicationcontroller"]:
+                self._scale_replicas(path)
+            else:
+                logger.info("Kubernetes run artifact: Skipping %s" % path)
+
+    def stop(self):
+        """Stops the app on Kubernetes
+        NOTE: kubectl stop is DEPRECATED
+        It will gracefully scale all replicas to 0
+        """
+        logger.info("Stopping from Kubernetes")
         self.process_k8s_artifacts()
 
         for kind, artifact in self.k8s_manifests:
@@ -200,11 +283,8 @@ class KubernetesProvider(Provider):
 
             if kind in ["ReplicationController", "rc", "replicationcontroller"]:
                 self._scale_replicas(path, replicas=0)
-
-            cmd = [self.kubectl, "delete", "-f", path, "--namespace=%s" % self.namespace]
-            if self.config_file:
-                cmd.append("--kubeconfig=%s" % self.config_file)
-            self._call(cmd)
+            else:
+                logger.info("Kubernetes stop artifact: Skipping %s" % path)
 
     def persistent_storage(self, graph, action):
         """

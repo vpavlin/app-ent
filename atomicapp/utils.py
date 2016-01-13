@@ -377,6 +377,16 @@ class Utils(object):
         logger.debug("Loading answers from file: %s", answers_file)
         return anymarkup.parse_file(answers_file)
 
+    # Retrieves a file and converts the respective format to a dictionary
+    @staticmethod
+    def fileToFormat(path, format):
+        return anymarkup.parse_file(path, format=format)
+
+    # Takes a dictionary, converts it to the specified format and write to file
+    @staticmethod
+    def formatToFile(data, path, format):
+        anymarkup.serialize_file(data, path, format)
+
     @staticmethod
     def copy_dir(src, dest, update=False, dryrun=False):
         if not dryrun:

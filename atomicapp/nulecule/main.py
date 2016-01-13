@@ -169,8 +169,8 @@ class NuleculeManager(object):
             self.nulecule.config, None)
         self._write_answers(answers_file, answers, answers_format)
 
-    def install(self, nodeps=False, update=False, dryrun=False,
-                answers_format=ANSWERS_FILE_SAMPLE_FORMAT, **kwargs):
+    def fetch(self, nodeps=False, update=False, dryrun=False,
+              answers_format=ANSWERS_FILE_SAMPLE_FORMAT, **kwargs):
         """
         Installs (unpacks) a Nulecule application from a Nulecule image
         to a target path.
@@ -204,6 +204,53 @@ class NuleculeManager(object):
         self._write_answers(
             os.path.join(self.app_path, ANSWERS_FILE_SAMPLE),
             runtime_answers, answers_format)
+
+    def install(self, cli_provider, answers_output, ask,
+                answers_format=ANSWERS_FILE_SAMPLE_FORMAT, **kwargs):
+        """
+        Runs a Nulecule application from a local path or a Nulecule image
+        name.
+
+        Args:
+            answers (dict or str): Answers data or local path to answers file
+            cli_provider (str): Provider to use to run the Nulecule
+                                application
+            answers_output (str): Path to file to export runtime answers data
+                                  to
+            ask (bool): Ask for values for params with default values from
+                        user, if True
+            answers_format (str): File format for writing sample answers file
+            kwargs (dict): Extra keyword arguments
+
+        Returns:
+            None
+        """
+        if self.answers_file:
+            self.answers = Utils.loadAnswers(self.answers_file)
+        self.answers_format = answers_format or ANSWERS_FILE_SAMPLE_FORMAT
+        dryrun = kwargs.get('dryrun') or False
+
+        # Call unpack. If the app doesn't exist it will be pulled. If
+        # it does exist it will be just be loaded and returned
+        self.nulecule = self.unpack(dryrun=dryrun, config=self.answers)
+
+        # Unless otherwise specified with CLI arguments we will
+        # default to the first provider available
+        providers = Utils.getSupportedProviders(self.app_path)
+        if cli_provider is None and len(providers) == 1:
+            self.answers[GLOBAL_CONF][PROVIDER_KEY] = providers[0]
+
+        self.nulecule.load_config(config=self.nulecule.config, ask=ask)
+        self.nulecule.render(cli_provider, dryrun)
+        self.nulecule.install(cli_provider, dryrun)
+        runtime_answers = self._get_runtime_answers(
+            self.nulecule.config, cli_provider)
+        self._write_answers(
+            os.path.join(self.app_path, ANSWERS_RUNTIME_FILE),
+            runtime_answers, self.answers_format)
+        if answers_output:
+            self._write_answers(answers_output, runtime_answers,
+                                self.answers_format)
 
     def run(self, cli_provider, answers_output, ask,
             answers_format=ANSWERS_FILE_SAMPLE_FORMAT, **kwargs):
@@ -271,10 +318,16 @@ class NuleculeManager(object):
         self.nulecule.render(cli_provider, dryrun=dryrun)
         self.nulecule.stop(cli_provider, dryrun)
 
-    def uninstall(self):
-        # For future use
-        self.stop()
-        self.nulecule.uninstall()
+    def uninstall(self, cli_provider, **kwargs):
+        self.answers = Utils.loadAnswers(
+            os.path.join(self.app_path, ANSWERS_RUNTIME_FILE))
+
+        dryrun = kwargs.get('dryrun') or False
+        self.nulecule = Nulecule.load_from_path(
+            self.app_path, config=self.answers, dryrun=dryrun)
+        self.nulecule.load_config(config=self.answers)
+        self.nulecule.render(cli_provider, dryrun=dryrun)
+        self.nulecule.uninstall(cli_provider, dryrun)
 
     def clean(self, force=False):
         # For future use
