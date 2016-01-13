@@ -172,14 +172,15 @@ class KubernetesProvider(Provider):
         """
         logger.info("Deploying to Kubernetes")
         self.process_k8s_artifacts()
+        logger.info("!!!!! %s" % self.k8s_manifests)
 
         for kind, artifact in self.k8s_manifests:
             if not artifact:
                 continue
 
-            k8s_file = os.path.join(self.path, artifact)
+            path = os.path.join(self.path, artifact)
 
-            cmd = [self.kubectl, "create", "-f", k8s_file, "--namespace=%s" % self.namespace]
+            cmd = [self.kubectl, "create", "-f", path, "--namespace=%s" % self.namespace]
             if self.config_file:
                 cmd.append("--kubeconfig=%s" % self.config_file)
             self._call(cmd)
