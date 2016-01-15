@@ -239,18 +239,82 @@ class OpenShiftProvider(Provider):
             return artifact["metadata"]["namespace"]
         return self.namespace
 
-    def run(self):
-        logger.debug("Deploying to OpenShift")
+    def install(self):
+        """Installs the app to OpenShift
+        If a Pod is detected, we do not run it
+        If a Replication Controller is detected. We launch it and scale to 0
+        All other artifacts (ex. persistentVolumeClaim) are ran as normal
+        """
+        logger.debug("Installing to OpenShift")
+
         # TODO: remove running components if one component fails issue:#428
-        for kind, objects in self.openshift_artifacts.iteritems():
-            for artifact in objects:
+        for kind, artifact in self.openshift_artifacts.iteritems():
+            # TODO: This is temporary. Why doesn't self.openshift_artifacts
+            # return a dict rather than an array? :(
+            artifact = artifact[0]
+
+            if not artifact:
+                continue
+
+            if kind in ["po", "Pod", "pod"]:
+                logger.warning("Pods will NOT be ran during installation.")
+                continue
+
+            # If a replicationController is detected we will change to replicas
+            # of 0 and write to a tmp file with the modified json/yaml file.
+            # Then change the file we will be running to the tmp one :)
+            if kind in ["ReplicationController", "rc", "replicationcontroller"]:
+                artifact['spec']['replicas'] = 0
+
+            namespace = self._get_namespace(artifact)
+            url = self._get_url(namespace, kind)
+
+            if self.dryrun:
+                logger.info("DRY-RUN: %s", url)
+                continue
+            self.oc.deploy(url, artifact)
+
+    def uninstall(self):
+        """Uninstalls the app on OpenShift
+        Completely deletes all artifacts
+        """
+        pass
+
+    # TODO: if you haven't ran install (yoou're just scaling) do install first
+    def run(self):
+        """Runs the app to OpenShift
+        If a Pod is detected, we run it
+        If a Replication Controller is detected, we scale to N in the artifact
+        If no Replication Controller is on OpenShift, but one is detected
+        in the artifacts folder, we run the 'install' function first.
+        All other artifacts are ignored as they are presumed to be ran during the
+        installation phase.
+        """
+        logger.debug("Running to OpenShift")
+
+        # TODO: remove running components if one component fails issue:#428
+        for kind, artifact in self.openshift_artifacts.iteritems():
+            # TODO: This is temporary. Why doesn't self.openshift_artifacts
+            # return a dict rather than an array? :(
+            artifact = artifact[0]
+
+            if not artifact:
+                continue
+
+            if kind in ["po", "Pod", "pod"]:
                 namespace = self._get_namespace(artifact)
                 url = self._get_url(namespace, kind)
 
                 if self.dryrun:
                     logger.info("DRY-RUN: %s", url)
-                    continue
+                continue
                 self.oc.deploy(url, artifact)
+            elif kind in ["ReplicationController", "rc", "replicationcontroller"]:
+                # insert scale the artifact here code!
+                continue
+            else:
+                logger.info("Openshift run artifact: Skipping deploying %s",
+                            artifact['kind'])
 
     def stop(self):
         """
