@@ -161,12 +161,11 @@ class NuleculeManager(object):
             self.nulecule.config, None)
         self._write_answers(answers_file, answers, answers_format)
 
-    def install(self, nodeps=False, update=False, dryrun=False,
-                answers_format=ANSWERS_FILE_SAMPLE_FORMAT, **kwargs):
+    def fetch(self, nodeps=False, update=False, dryrun=False,
+              answers_format=ANSWERS_FILE_SAMPLE_FORMAT, **kwargs):
         """
         Installs (unpacks) a Nulecule application from a Nulecule image
         to a target path.
-
         Args:
             answers (dict or str): Answers data or local path to answers file
             nodeps (bool): Install the nulecule application without installing
@@ -176,7 +175,6 @@ class NuleculeManager(object):
             dryrun (bool): Do not make any change to the host system if True
             answers_format (str): File format for writing sample answers file
             kwargs (dict): Extra keyword arguments
-
         Returns:
             None
         """
