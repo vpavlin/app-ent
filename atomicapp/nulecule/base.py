@@ -16,7 +16,10 @@ from atomicapp.constants import (APP_ENT_PATH,
                                  NAME_KEY,
                                  INHERIT_KEY,
                                  ARTIFACTS_KEY,
-                                 REQUIREMENTS_KEY)
+                                 REQUIREMENTS_KEY,
+                                 PROVIDER_KEY,
+                                 DEFAULTPROVIDER_KEY,
+                                 DEFAULT_PROVIDER)
 from atomicapp.utils import Utils
 from atomicapp.requirements import Requirements
 from atomicapp.nulecule.lib import NuleculeBase
@@ -197,6 +200,12 @@ class Nulecule(NuleculeBase):
         """
         super(Nulecule, self).load_config(
             config=config, ask=ask, skip_asking=skip_asking)
+
+        if not self.config[GLOBAL_CONF].get(PROVIDER_KEY):
+            self.config[GLOBAL_CONF][PROVIDER_KEY] = (
+                self.metadata.get(DEFAULTPROVIDER_KEY) or
+                DEFAULT_PROVIDER
+            )
         for component in self.components:
             # FIXME: Find a better way to expose config data to components.
             #        A component should not get access to all the variables,
