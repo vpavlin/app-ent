@@ -1,0 +1,162 @@
+.\" Copyright (C) 2016 Red Hat Inc.
+.\" 
+.\" This program is free software: you can redistribute it and/or modify
+.\" it under the terms of the GNU Lesser General Public License as published
+.\" by the Free Software Foundation, either version 3 of the License,
+.\" or (at your option) any later version.
+.\" 
+.\" This program is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty
+.\" of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+.\" See the GNU Lesser General Public License for more details.
+.\" 
+.\" You should have received a copy of the GNU Lesser General Public License
+.\" along with this program. If not, see http://www.gnu.org/licenses/.
+.\" 
+.\" The GNU Lesser General Public License is provided within
+.\" the file lgpl-3.0.txt.
+
+.TH "ATOMICAPP" "1" " atomicapp User Manuals" "" "Jan 2016"  ""
+
+.SH NAME
+.PP
+atomicapp \- Install and run an Atomic App, a containerized application conforming to the Nulecule Specification
+
+.SH SYNOPSIS
+.PP
+\fBatomicapp\fP [OPTIONS] {stop,run,genanswers,install}
+
+.SH DESCRIPTION
+.PP
+Atomic App is a reference implementation of the Nulecule Specification.
+It can be used to bootstrap container applications and to install
+and run them. Atomic App is designed to be run in a container context.
+
+.SH OPTIONS
+
+.SS
+\fBGeneral options\fP
+
+.TP
+\fB\-h\fP, \fB\-\-help\fP
+Show the help and exit.
+
+.TP
+\fB\-V\fP, \fB\-\-version\fP
+Show the version and exit.
+
+.TP
+\fB\-v\fP, \fB\-\-verbose\fP
+Verbose output mode.
+
+.TP
+\fB\-q\fP, \fB\-\-quiet\fP
+Quite output mode.
+
+.TP
+\fB\-\-mode\fP {instal,run,stop,genanswers}
+The mode Atomic App is run in. This option has the effect of switching
+the 'verb' that was passed by the user as the first positional argument.
+This is useful in cases where a user is not using the Atomic App cli directly,
+but through another interface such as the Atomic CLI.
+EX: `atomic run <IMAGE> --mode=genanswers`
+
+.TP
+\fB\-\-dry\-run\fP
+Don't actually call provider. The commands that should be run will be sent to stdout but not run.
+
+.TP
+\fB\-\-answers\-format\fP {ini,json,xml,yaml}
+The format for the answers.conf.sample file. Default: ini
+
+.TP
+\fB\-\-providertlsverify\fP {True,False}
+Value for providertlsverify answers option.
+--providertlsverify=False to disable tls verification
+
+.TP
+\fB\-\-providerconfig\fP PROVIDERCONFIG
+Value for providerconfig answers option.
+
+.TP
+\fB\-\-providercafile\fP PROVIDERCAFILE
+Value for providercafile answers option.
+
+.TP
+\fB\-\-providerapi\fP PROVIDERAPI
+Value for providerapi answers option.
+
+.SS
+\fBRun options\fP
+
+.TP
+\fB\-a\fP ANSWERS, \fB\-\-answers\fP ANSWERS
+Path to answers.conf
+
+.TP
+\fB\-\-write\-answers\fP ANSWERS_OUTPUT
+A file which will contain anwsers provided in
+interactive mode
+
+.TP
+\fB\-\-provider\fP {docker,kubernetes,openshift,marathon}
+The provider to use. Overrides provider value in
+answerfile.
+
+.TP
+\fB\-\-ask\fP
+Ask for params even if the defaul value is provided
+
+.TP
+\fB\-\-destination\fP DESTINATION
+Destination directory for install. This defaults to a
+directory under /var/lib/atomicapp. Specify 'none' to
+not persist files and have them cleaned up when
+finished.
+
+.SS
+\fBStop options\fP
+
+.TP
+\fB\-\-provider\fP {docker,kubernetes,openshift,marathon}
+The provider to use. Overrides provider value in
+answerfile.
+
+.SS
+\fBInstall options\fP
+
+.TP
+\fB\-a\fP ANSWERS, \fB\-\-answers\fP ANSWERS
+Path to answers.conf
+
+.TP
+\fB\-\-no\-deps\fP
+Skip pulling dependencies of the app
+
+.TP
+\fB\-u\fP, \fB\-\-update\fP
+Re-pull images and overwrite existing files
+
+.TP
+\fB\-\-destination\fP DESTINATION
+Destination directory for install. This defaults to a
+directory under /var/lib/atomicapp. Specify 'none' to
+not persist files and have them cleaned up when
+finished.
+
+.SH PROVIDERS
+Providers may be specified using the answers.conf file
+or the \fB\-\-provider\fP <provider> option.
+If a provider is not explicitly implied and only one provider exists
+within the Nulecule container, Atomic App will use said provider.
+If neither are detected, Atomic App will use Kubernetes by default.
+
+Supported providers: kubernetes (default), openshift, docker, Marathon (Mesos)
+
+.SH NOTES
+
+.TP
+https://github.com/projectatomic/atomicapp - official repository
+
+.TP
+http://www.projectatomic.io/docs/atomicapp - official project page
