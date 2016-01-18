@@ -44,8 +44,10 @@ class DockerProvider(Provider):
             self.image = Utils.sanitizeName(self.config.get("image"))
         else:
             self.image = Utils.getUniqueUUID()
-            logger.warning("The artifact name has not been provided within Nulecule, using a UUID instead")
-            logger.debug("No image name found for artifact, using UUID %s in container name" % self.image)
+            logger.warning(
+                "The artifact name has not been provided within Nulecule, using a UUID instead")
+            logger.debug(
+                "No image name found for artifact, using UUID %s in container name" % self.image)
 
         if self.dryrun:
             logger.info("DRY-RUN: Did not check Docker version compatibility")
@@ -77,12 +79,23 @@ class DockerProvider(Provider):
         else:
             return dict((line, 1) for line in subprocess.check_output(docker_cmd, shell=True).splitlines())
 
-    def run(self):
-        logger.info("Deploying to provider: Docker")
+    def _run_phase1(self):
+        """Run Phase 1
+        Check to see if the container has already been deployed.
+        """
+        logger.info("Initializing Docker container")
+        logger.debug("Phase 1 run: Docker")
         for container in self._get_containers():
             if re.match("%s_+%s+_+[a-zA-Z0-9]{12}" % (self.namespace, self.image), container):
-                raise ProviderFailedException("Container with name %s-%s already deployed in Docker" % (self.namespace, self.image))
+                raise ProviderFailedException(
+                    "Container with name %s-%s already deployed in Docker" % (self.namespace, self.image))
 
+    def _run_phase2(self):
+        """Run Phase 2
+        Deploy the container
+        """
+        logger.info("Running Docker container")
+        logger.debug("Phase 2 run: Docker")
         for artifact in self.artifacts:
             artifact_path = os.path.join(self.path, artifact)
             label_run = None
@@ -95,13 +108,21 @@ class DockerProvider(Provider):
             if '--name' in run_args:
                 logger.info("WARNING: Using --name provided within artifact file.")
             else:
-                run_args.insert(run_args.index('run') + 1, "--name=%s_%s_%s" % (self.namespace, self.image, Utils.getUniqueUUID()))
+                run_args.insert(run_args.index('run') + 1, "--name=%s_%s_%s" %
+                                (self.namespace, self.image, Utils.getUniqueUUID()))
 
             cmd = run_args
             if self.dryrun:
                 logger.info("DRY-RUN: %s", " ".join(cmd))
             else:
                 subprocess.check_call(cmd)
+
+    def run(self):
+        logger.info("Deploying to provider: Docker")
+
+        self._run_phase1()
+        # TODO: Add if statement for --scale=0/None in order to NOT run phase2.
+        self._run_phase2()
 
     def stop(self):
         logger.info("Undeploying to provider: Docker")
@@ -126,7 +147,8 @@ class DockerProvider(Provider):
                 artifact_names.append(run_args[run_args.index('--name') + 1])
                 logger.debug("artifact cnames: %s", artifact_names)
 
-        # Regex checks for matching container name and kills it. ex. atomic_mariadb-atomicapp-app_9dfb369ed2a0
+        # Regex checks for matching container name and kills it. ex.
+        # atomic_mariadb-atomicapp-app_9dfb369ed2a0
         for container in self._get_containers():
             if artifact_names:
                 m = [i for i, x in enumerate(artifact_names) if x == container]
