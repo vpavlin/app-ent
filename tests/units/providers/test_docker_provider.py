@@ -66,7 +66,7 @@ class TestDockerProviderBase(unittest.TestCase):
             ["test_fedora-httpd_e9b9a7bfe8f9", "test_centos-httpd_e9b9a7bfe8f9", "test_centos-httpd_e9b9a7bfe8f9"]
             ])
         with mock.patch("atomicapp.providers.docker.DockerProvider._get_containers", mock_container_list):
-            provider.deploy()
+            provider.run()
 
    
     # Patch in a general container list and make sure it fails if there is already a container with the same name 
@@ -77,4 +77,4 @@ class TestDockerProviderBase(unittest.TestCase):
         provider.init()
         provider.artifacts = [self.artifact_dir + 'hello-world-one']
         with pytest.raises(ProviderFailedException):
-            provider.deploy()
+            provider.run()

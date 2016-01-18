@@ -37,12 +37,12 @@ class OpenshiftProviderTestMixin(object):
 
 class TestOpenshiftProviderDeploy(OpenshiftProviderTestMixin, unittest.TestCase):
     """
-    Test OpenShiftProvider.deploy
+    Test OpenShiftProvider.run
     """
 
-    def test_deploy(self):
+    def test_run(self):
         """
-        Test calling OpenshiftClient.deploy from OpenShiftProvider.deploy
+        Test calling OpenshiftClient.run from OpenShiftProvider.run
         """
         op = self.get_oc_provider()
         op.oapi_resources = ['foo']
@@ -56,15 +56,15 @@ class TestOpenshiftProviderDeploy(OpenshiftProviderTestMixin, unittest.TestCase)
             ]
         }
 
-        op.deploy()
+        op.run()
 
         self.mock_oc.deploy.assert_called_once_with(
             'namespaces/foo/pods/?access_token=test',
             op.openshift_artifacts['pods'][0])
 
-    def test_deploy_dryrun(self):
+    def test_run_dryrun(self):
         """
-        Test running OpenShiftProvider.deploy as dryrun
+        Test running OpenShiftProvider.run as dryrun
         """
         op = self.get_oc_provider(dryrun=True)
         op.oapi_resources = ['foo']
@@ -78,18 +78,18 @@ class TestOpenshiftProviderDeploy(OpenshiftProviderTestMixin, unittest.TestCase)
             ]
         }
 
-        op.deploy()
+        op.run()
 
-        self.assertFalse(self.mock_oc.deploy.call_count)
+        self.assertFalse(self.mock_oc.run.call_count)
 
-class TestOpenshiftProviderUndeploy(OpenshiftProviderTestMixin, unittest.TestCase):
+class TestOpenshiftProviderUnrun(OpenshiftProviderTestMixin, unittest.TestCase):
     """
-    Test OpenShiftProvider.undeploy
+    Test OpenShiftProvider.stop
     """
 
-    def test_undeploy(self):
+    def test_stop(self):
         """
-        Test calling OpenshiftClient.delete from OpenShiftProvider.undeploy
+        Test calling OpenshiftClient.delete from OpenShiftProvider.stop
         """
         op = self.get_oc_provider()
         op.oapi_resources = ['foo']
@@ -105,15 +105,15 @@ class TestOpenshiftProviderUndeploy(OpenshiftProviderTestMixin, unittest.TestCas
             ]
         }
 
-        op.undeploy()
+        op.stop()
 
         self.mock_oc.delete.assert_called_once_with(
             'namespaces/foo/pods/%s?access_token=test' %
             op.openshift_artifacts['pods'][0]['metadata']['name'])
 
-    def test_undeploy_dryrun(self):
+    def test_stop_dryrun(self):
         """
-        Test running OpenShiftProvider.undeploy as dryrun
+        Test running OpenShiftProvider.stop as dryrun
         """
         op = self.get_oc_provider(dryrun=True)
         op.oapi_resources = ['foo']
@@ -129,7 +129,7 @@ class TestOpenshiftProviderUndeploy(OpenshiftProviderTestMixin, unittest.TestCas
             ]
         }
 
-        op.deploy()
+        op.stop()
 
         self.assertFalse(self.mock_oc.delete.call_count)
 
