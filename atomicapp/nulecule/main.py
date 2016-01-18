@@ -262,11 +262,6 @@ class NuleculeManager(object):
         self.nulecule.render(cli_provider, dryrun=dryrun)
         self.nulecule.stop(cli_provider, dryrun)
 
-    def uninstall(self):
-        # For future use
-        self.stop()
-        self.nulecule.uninstall()
-
     def clean(self, force=False):
         # For future use
         self.uninstall()

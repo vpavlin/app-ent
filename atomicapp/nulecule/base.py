@@ -177,11 +177,6 @@ class Nulecule(NuleculeBase):
         for component in self.components:
             component.stop(provider_key, dryrun)
 
-    # TODO: NOT YET IMPLEMENTED
-    def uninstall(self):
-        for component in self.components:
-            component.uninstall()
-
     def load_config(self, config=None, ask=False, skip_asking=False):
         """
         Load config data for the entire Nulecule application, by traversing

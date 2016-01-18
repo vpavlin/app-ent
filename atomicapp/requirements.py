@@ -44,9 +44,6 @@ class Requirements:
     def stop(self):
         self._exec("stop")
 
-    def uninstall(self):
-        self._exec("uninstall")
-
     # Find if the requirement does not exist within REQUIREMENT_FUNCTIONS
     def _find_requirement_function_name(self, key):
         logging.debug("Checking if %s matches any of %s" %
