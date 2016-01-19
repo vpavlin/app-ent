@@ -23,6 +23,7 @@ import anymarkup
 import ssl
 import tarfile
 import time
+import copy
 from urlparse import urljoin
 from urllib import urlencode
 import websocket
@@ -368,18 +369,96 @@ class OpenShiftProvider(Provider):
             return artifact["metadata"]["namespace"]
         return self.namespace
 
+    def _get_metadata_value(self, artifact, value):
+        if "metadata" in artifact and value in artifact["metadata"]:
+            return artifact["metadata"][value]
+        else:
+            raise ProviderFailedException("Unable to get value. There is no"
+                                          " %s in artifacts metadata "
+                                          "artifact=%s" % (value, artifact))
+
+    def _run_phase1(self):
+        """Run Phase 1
+        If a Pod is detected, we do not run it
+        If a Replication Controller is detected. We launch it and scale to 0
+        All other artifacts (ex. persistentVolumeClaim) are ran during phase 1
+        """
+        logger.info("Initializing Nulecule container on OpenShift")
+        logger.debug("Phase 1 run: OpenShift")
+
+        # TODO: remove running components if one component fails issue:#428
+        for kind, artifact in self.openshift_artifacts.iteritems():
+            if not artifact:
+                continue
+
+            if kind in ["po", "Pod", "pod"]:
+                logger.debug("Not running artifact: %s" % artifact)
+                logger.debug("Pods are not ran during phase 1 run.")
+            elif kind in ["ReplicationController", "rc", "replicationcontroller"]:
+                for object in artifact:
+                    namespace = self._get_namespace(object)
+                    url = self._get_url(namespace, kind)
+                    logger.debug("Deploying replication controller with scale as 0")
+                    rc = copy.deepcopy(object)
+                    rc["spec"]["replicas"] = 0
+                    if self.dryrun:
+                        logger.info("DRY-RUN: %s", url)
+                    else:
+                        self.oc.deploy(url, rc)
+            else:
+                for object in artifact:
+                    namespace = self._get_namespace(object)
+                    url = self._get_url(namespace, kind)
+
+                    if self.dryrun:
+                        logger.info("DRY-RUN: %s", url)
+                    else:
+                        self.oc.deploy(url, object)
+
+    def _run_phase2(self):
+        """Run Phase 2
+        If a Pod is detected, we run it
+        If a Replication Controller is detected, we scale to N in the artifact
+        All other artifacts are ignored as they are presumed to be ran during the
+        installation phase.
+        """
+        logger.info("Running and scaling Nulecule container on OpenShift")
+        logger.debug("Phase 2 run: OpenShift")
+
+        for kind, artifact in self.openshift_artifacts.iteritems():
+            if not artifact:
+                continue
+
+            if kind in ["po", "Pod", "pod"]:
+                for object in artifact:
+                    namespace = self._get_namespace(object)
+                    url = self._get_url(namespace, kind)
+
+                    if self.dryrun:
+                        logger.info("DRY-RUN: %s", url)
+                    else:
+                        self.oc.deploy(url, object)
+            elif kind in ["ReplicationController", "rc", "replicationcontroller"]:
+                for object in artifact:
+                    # Get name from metadata so we know which object to delete.
+
+                    namespace = self._get_namespace(object)
+                    name = self._get_metadata_value(object, "name")
+                    url = self._get_url(namespace, kind, name)
+                    scale_value = object["spec"]["replicas"]
+                    if self.dryrun:
+                        logger.info("DRY-RUN: Scaling %s to %s"
+                                    % (url, scale_value))
+                    else:
+                        self.oc.scale(url, scale_value)
+            else:
+                logger.debug("OpenShift run phase 2: Skipping artifact: %s" % artifact)
+
     def run(self):
         logger.debug("Deploying to OpenShift")
-        # TODO: remove running components if one component fails issue:#428
-        for kind, objects in self.openshift_artifacts.iteritems():
-            for artifact in objects:
-                namespace = self._get_namespace(artifact)
-                url = self._get_url(namespace, kind)
-
-                if self.dryrun:
-                    logger.info("DRY-RUN: %s", url)
-                    continue
-                self.oc.deploy(url, artifact)
+        self._run_phase1()
+        # TODO: Add if statement for --scale=0/None in order to NOT run phase2.
+        self._run_phase2()
 
     def stop(self):
         """
