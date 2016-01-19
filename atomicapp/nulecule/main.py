@@ -248,6 +248,7 @@ class NuleculeManager(object):
             logger.debug('Nulecule run error: %s' % e, exc_info=True)
             logger.info('Rolling back changes')
             self.stop(cli_provider, ignore_errors=True, **kwargs)
+            raise NuleculeException('Rolled back changes.')
 
     def stop(self, cli_provider, ignore_errors=False, **kwargs):
         """
