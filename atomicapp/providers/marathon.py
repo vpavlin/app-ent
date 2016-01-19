@@ -97,7 +97,8 @@ class Marathon(Provider):
                 msg = "Error deleting app: %s, Marathon API response %s - %s" % (
                     artifact["id"], status_code, return_data)
                 logger.error(msg)
-                raise ProviderFailedException(msg)
+                if not self.ignore_errors:
+                    raise ProviderFailedException(msg)
 
     def _process_artifacts(self):
         """ Parse and validate Marathon artifacts
