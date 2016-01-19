@@ -90,6 +90,10 @@ class NuleculeManager(object):
         logger.debug("NuleculeManager init app_path: %s", self.app_path)
         logger.debug("NuleculeManager init    image: %s", self.image)
 
+        # Create the app_path if it doesn't exist yet
+        if not os.path.isdir(self.app_path):
+            os.makedirs(self.app_path)
+
         # Set where the main nulecule file should be
         self.main_file = os.path.join(self.app_path, MAIN_FILE)
 
