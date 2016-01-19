@@ -5,6 +5,8 @@ import distutils.dir_util
 import logging
 import os
 import tempfile
+import urlparse
+import urllib
 
 from atomicapp.constants import (GLOBAL_CONF,
                                  ANSWERS_FILE_SAMPLE_FORMAT,
@@ -91,12 +93,8 @@ class NuleculeManager(object):
         # Set where the main nulecule file should be
         self.main_file = os.path.join(self.app_path, MAIN_FILE)
 
-        # If user provided a path to answers, then load them
-        if answers_file:
-            if not os.path.isfile(answers_file):
-                raise NuleculeException(
-                    "Answers file doesn't exist: {}".format(answers_file))
-            self.answers_file = answers_file
+        # Process answers.
+        self.answers_file = answers_file
         self._process_answers()
 
     def unpack(self, update=False,
@@ -287,16 +285,32 @@ class NuleculeManager(object):
         Returns:
             None
         """
+        app_path_answers = os.path.join(self.app_path, ANSWERS_FILE)
 
         # If the user didn't provide an answers file then check the app
         # dir to see if one exists.
         if not self.answers_file:
-            f = os.path.join(self.app_path, ANSWERS_FILE)
-            if os.path.isfile(f):
-                self.answers_file = f
+            if os.path.isfile(app_path_answers):
+                self.answers_file = app_path_answers
 
         # At this point if we have an answers file, load it
         if self.answers_file:
+
+            # If this is a url then download answers file to app directory
+            if urlparse.urlparse(self.answers_file).scheme != "":
+                logger.debug("Retrieving answers file from: {}"
+                             .format(self.answers_file))
+                with open(app_path_answers, 'w+') as f:
+                    stream = urllib.urlopen(self.answers_file)
+                    f.write(stream.read())
+                self.answers_file = app_path_answers
+
+            # Check to make sure the file exists
+            if not os.path.isfile(self.answers_file):
+                raise NuleculeException(
+                    "Provided answers file doesn't exist: {}".format(self.answers_file))
+
+            # Load answers
             self.answers = Utils.loadAnswers(self.answers_file)
 
         # If there is answers data from the cli then merge it in now
