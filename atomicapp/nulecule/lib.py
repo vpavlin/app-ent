@@ -104,8 +104,7 @@ class NuleculeBase(object):
     def stop(self, provider):
         raise NotImplementedError
 
-    def install(self):
+    def fetch(self):
         raise NotImplementedError
-
     def uninstall(self):
         raise NotImplementedError

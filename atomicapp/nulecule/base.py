@@ -177,11 +177,6 @@ class Nulecule(NuleculeBase):
         for component in self.components:
             component.stop(provider_key, dryrun)
 
-    # TODO: NOT YET IMPLEMENTED
-    def uninstall(self):
-        for component in self.components:
-            component.uninstall()
-
     def load_config(self, config=None, ask=False, skip_asking=False):
         """
         Load config data for the entire Nulecule application, by traversing
@@ -293,7 +288,7 @@ class NuleculeComponent(NuleculeBase):
         provider_key, provider = self.get_provider(provider_key, dryrun)
         provider.artifacts = self.rendered_artifacts.get(provider_key, [])
         provider.init()
-        provider.deploy()
+        provider.run()
 
     def stop(self, provider_key=None, dryrun=False):
         """
@@ -305,7 +300,7 @@ class NuleculeComponent(NuleculeBase):
         provider_key, provider = self.get_provider(provider_key, dryrun)
         provider.artifacts = self.rendered_artifacts.get(provider_key, [])
         provider.init()
-        provider.undeploy()
+        provider.stop()
 
     def load_config(self, config=None, ask=False, skip_asking=False):
         """

@@ -88,7 +88,7 @@ class TestNuleculeComponentRun(unittest.TestCase):
         mock_get_provider.assert_called_once_with(provider_key, dryrun)
         self.assertEqual(mock_provider.artifacts, ['a', 'b', 'c'])
         mock_provider.init.assert_called_once_with()
-        mock_provider.deploy.assert_called_once_with()
+        mock_provider.run.assert_called_once_with()
 
 
 class TestNuleculeComponentStop(unittest.TestCase):
@@ -120,7 +120,7 @@ class TestNuleculeComponentStop(unittest.TestCase):
         mock_get_provider.assert_called_once_with(provider_key, dryrun)
         self.assertEqual(mock_provider.artifacts, ['a', 'b', 'c'])
         mock_provider.init.assert_called_once_with()
-        mock_provider.undeploy.assert_called_once_with()
+        mock_provider.stop.assert_called_once_with()
 
 
 class TestNuleculeComponentLoadConfig(unittest.TestCase):

@@ -31,6 +31,3 @@ class TestPersistentStorage(unittest.TestCase):
 
     def test_stop(self):
         self.test.stop()
-
-    def test_uninstall(self):
-        self.test.uninstall()

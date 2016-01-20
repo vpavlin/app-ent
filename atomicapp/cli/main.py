@@ -65,7 +65,7 @@ def cli_genanswers(args):
         sys.exit(1)
 
 
-def cli_install(args):
+def cli_fetch(args):
     try:
         argdict = args.__dict__
         destination = argdict['destination']
@@ -73,7 +73,7 @@ def cli_install(args):
                              destination=destination,
                              cli_answers=argdict['cli_answers'],
                              answers_file=argdict['answers'])
-        nm.install(**argdict)
+        nm.fetch(**argdict)
         # Clean up the files if the user asked us to. Otherwise
         # notify the user where they can manage the application
         if destination and destination.lower() == 'none':
@@ -131,6 +131,7 @@ def cli_stop(args):
 # want to store a value if the user didn't provide one. "store_true" does
 # not allow this; it will always create an attribute and store a value.
 class TrueOrFalseAction(argparse.Action):
+
     def __call__(self, parser, namespace, values, option_string=None):
         if values.lower() == 'true':
             booleanvalue = True
@@ -202,7 +203,7 @@ class CLI():
             "--mode",
             dest="mode",
             default=None,
-            choices=['install', 'run', 'stop', 'genanswers'],
+            choices=['fetch', 'run', 'stop', 'genanswers'],
             help=('''
                  The mode Atomic App is run in. This option has the
                  effect of switching the 'verb' that was passed by the
@@ -288,43 +289,43 @@ class CLI():
                 files and have them cleaned up when finished.''' % CACHE_DIR))
         run_subparser.set_defaults(func=cli_run)
 
-        # === "install" SUBPARSER ===
-        install_subparser = toplevel_subparsers.add_parser(
-            "install", parents=[globals_parser])
-        install_subparser.add_argument(
+        # === "fetch" SUBPARSER ===
+        fetch_subparser = toplevel_subparsers.add_parser(
+            "fetch", parents=[globals_parser])
+        fetch_subparser.add_argument(
             "-a",
             "--answers",
             dest="answers",
             help="Path to %s" % ANSWERS_FILE)
-        install_subparser.add_argument(
+        fetch_subparser.add_argument(
             "--no-deps",
             dest="nodeps",
             default=False,
             action="store_true",
             help="Skip pulling dependencies of the app")
-        install_subparser.add_argument(
+        fetch_subparser.add_argument(
             "-u",
             "--update",
             dest="update",
             default=False,
             action="store_true",
             help="Re-pull images and overwrite existing files")
-        install_subparser.add_argument(
+        fetch_subparser.add_argument(
             "--destination",
             dest="destination",
             default=None,
             help=('''
-                Destination directory for install. This defaults to a
+                Destination directory for fetch. This defaults to a
                 directory under %s. Specify 'none' to not persist
                 files and have them cleaned up when finished.''' % CACHE_DIR))
-        install_subparser.add_argument(
+        fetch_subparser.add_argument(
             "app_spec",
             nargs='?',
             default=None,
             help=(
                 "Application to run. This is a container image or a path "
                 "that contains the metadata describing the whole application."))
-        install_subparser.set_defaults(func=cli_install)
+        fetch_subparser.set_defaults(func=cli_fetch)
 
         # === "stop" SUBPARSER ===
         stop_subparser = toplevel_subparsers.add_parser(
