@@ -13,7 +13,7 @@ class TestNuleculeRun(unittest.TestCase):
         mock_component_1 = mock.Mock()
         mock_component_2 = mock.Mock()
 
-        n = Nulecule('some-id', '0.0.2', {}, [{}], 'some/path')
+        n = Nulecule('some-id', '0.0.2', [{}], 'some/path', {})
         n.components = [mock_component_1, mock_component_2]
         n.run(provider)
 
@@ -134,7 +134,7 @@ class TestNuleculeLoadComponents(unittest.TestCase):
             }
         ]
 
-        n = Nulecule('some-id', '0.0.2', {}, graph, 'some/path')
+        n = Nulecule('some-id', '0.0.2', graph, 'some/path', {})
         n.load_components()
 
         MockNuleculeComponent.assert_any_call(

@@ -39,7 +39,7 @@ class Nulecule(NuleculeBase):
     componenents, but does not have access to its parent's scope.
     """
 
-    def __init__(self, id, specversion, metadata, graph, basepath,
+    def __init__(self, id, specversion, graph, basepath, metadata=None,
                  requirements=None, params=None, config=None,
                  namespace=GLOBAL_CONF):
         """
@@ -48,9 +48,9 @@ class Nulecule(NuleculeBase):
         Args:
             id (str): Nulecule application ID
             specversion (str): Nulecule spec version
-            metadata (dict): Nulecule metadata
             graph (list): Nulecule graph of components
             basepath (str): Basepath for Nulecule application
+            metadata (dict): Nulecule metadata
             requirements (dict): Requirements for the Nulecule application
             params (list): List of params for the Nulecule application
             config (dict): Config data for the Nulecule application
@@ -62,7 +62,7 @@ class Nulecule(NuleculeBase):
         super(Nulecule, self).__init__(basepath, params, namespace)
         self.id = id
         self.specversion = specversion
-        self.metadata = metadata
+        self.metadata = metadata or {}
         self.graph = graph
         self.requirements = requirements
         self.config = config or {}
