@@ -249,7 +249,7 @@ class Nulecule(NuleculeBase):
     def _get_component_namespace(self, component_name):
         current_namespace = '' if self.namespace == GLOBAL_CONF else self.namespace
         return (
-            '%s:%s' % (current_namespace, component_name)
+            '%s__%s' % (current_namespace, component_name)
             if current_namespace else component_name)
 
 

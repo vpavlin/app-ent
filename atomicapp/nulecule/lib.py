@@ -113,5 +113,5 @@ class NuleculeBase(object):
         raise NotImplementedError
 
     def _get_parent_namespace(self):
-        tokens = self.namespace.split(':')
-        return ':'.join(tokens[:-1]) if len(tokens) > 1 else GLOBAL_CONF
+        tokens = self.namespace.split('__')
+        return '__'.join(tokens[:-1]) if len(tokens) > 1 else GLOBAL_CONF
