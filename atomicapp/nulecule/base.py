@@ -340,7 +340,8 @@ class NuleculeComponent(NuleculeBase):
                 'Found existing external application for %s. '
                 'Loading it.' % self.name)
             nulecule = Nulecule.load_from_path(
-                external_app_path, dryrun=dryrun, update=update)
+                external_app_path, dryrun=dryrun, update=update,
+                namespace=self.namespace)
         elif not dryrun:
             logger.info('Pulling external application for %s.' % self.name)
             nulecule = Nulecule.unpack(
