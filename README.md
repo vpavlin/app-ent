@@ -19,45 +19,7 @@ For more information see the [Atomic App getting started guide](http://www.proje
 
 ## Developers
 
-First of all, clone the github repository: `git clone https://github.com/projectatomic/atomicapp`.
-
-### Install this project
-Simply run
-
-```
-pip install .
-```
-
-If you want to do some changes to the code, I suggest to do:
-
-```
-cd atomicapp
-export PYTHONPATH=`pwd`:$PYTHONPATH
-alias atomicapp="python `pwd`/atomicapp/cli/main.py"
-```
-
-### Build
-```
-docker build -t [TAG] .
-```
-
-Just a call to Docker to package up the application and tag the resulting image.
-
-### Install and Run
-```
-atomicapp [--dry-run] [-a answers.conf] install|run [--recursive] [--update] [--destination DST_PATH] APP|PATH
-```
-
-Pulls the application and it's dependencies. If the last argument is
-existing path, it looks for `Nulecule` file there instead of pulling anything.
-
-* `--recursive yes|no` Pull whole dependency tree
-* `--update` Overwrite any existing files
-* `--destination DST_PATH` Unpack the application into given directory instead of current directory
-* `APP` Name of the image containing the application (f.e. `vpavlin/wp-app`)
-* `PATH` Path to a directory with installed (i.e. result of `atomicapp install ...`) app
-
-Action `run` performs `install` prior its own tasks are executed if `APP` is given. When `run` is selected, providers' code is invoked and containers are deployed.
+See CONTRIBUTING.md for development.
 
 ## Providers
 
