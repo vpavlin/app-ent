@@ -1,0 +1,47 @@
+FROM alpine:3.2
+
+MAINTAINER Red Hat, Inc. <container-tools@redhat.com>
+
+ENV ATOMICAPPVERSION="0.4.1"
+
+LABEL io.projectatomic.nulecule.atomicappversion=${ATOMICAPPVERSION} \
+      io.openshift.generate.job=true \
+      io.openshift.generate.token.as=env:TOKEN_ENV_VAR \
+      RUN="docker run -it --rm \${OPT1} --privileged -v `pwd`:/atomicapp -v /run:/run -v /:/host --net=host --name \${NAME} -e NAME=\${NAME} -e IMAGE=\${IMAGE} \${IMAGE} -v \${OPT2} run \${OPT3}" \
+      STOP="docker run -it --rm \${OPT1} --privileged -v `pwd`:/atomicapp -v /run:/run -v /:/host --net=host --name \${NAME} -e NAME=\${NAME} -e IMAGE=\${IMAGE} \${IMAGE} -v \${OPT2} stop \${OPT3}"
+
+WORKDIR /opt/atomicapp
+
+# Add the requirements file into the container
+ADD requirements.txt ./
+
+RUN apk add --update python && \
+    apk add curl wget ca-certificates && \
+    wget "https://bootstrap.pypa.io/get-pip.py" -O /dev/stdout | python && \
+    pip install -r requirements.txt && \
+    curl -sSl https://get.docker.com/builds/Linux/x86_64/docker-1.8.3 > /usr/bin/docker && \
+    chmod a+x /usr/bin/docker && \
+    apk del wget curl ca-certificates && \
+    rm /var/cache/apk/*
+
+WORKDIR /atomicapp
+
+# If a volume doesn't get mounted over /atomicapp (like when running in 
+# an openshift pod) then open up permissions so files can be copied into
+# the directory by non-root.
+RUN chmod 777 /atomicapp
+
+# If a volume doesn't get mounted over /run (like when running in an
+# openshift pod) then open up permissions so the lock file can be
+# created by non-root.
+# P.S. /run/lock doesn't exist in alpine so we have to create it.
+RUN touch /run/lock && chmod 777 /run/lock
+
+ENV PYTHONPATH  /opt/atomicapp/
+
+# the entrypoint
+ENTRYPOINT ["/usr/bin/python", "/opt/atomicapp/atomicapp/cli/main.py"]
+
+# Add all of Atomic App's files to the container image
+# NOTE: Do this last so rebuilding after development is fast
+ADD atomicapp/ /opt/atomicapp/atomicapp/
