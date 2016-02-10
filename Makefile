@@ -1,7 +1,11 @@
 all:
 	python -m pytest -vv
 
-install:
+docs:
+	install -d /usr/share/man/man1
+	install -m 644 docs/man/atomicapp.1 /usr/share/man/man1
+
+install: docs
 	python setup.py install
 
 test:
