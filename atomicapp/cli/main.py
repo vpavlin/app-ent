@@ -25,7 +25,6 @@ import logging
 from lockfile import LockFile
 from lockfile import AlreadyLocked
 
-from atomicapp import set_logging
 from atomicapp.constants import (__ATOMICAPPVERSION__,
                                  __NULECULESPECVERSION__,
                                  ANSWERS_FILE,
@@ -38,6 +37,7 @@ from atomicapp.constants import (__ATOMICAPPVERSION__,
 from atomicapp.nulecule import NuleculeManager
 from atomicapp.nulecule.exceptions import NuleculeException
 from atomicapp.utils import Utils
+from atomicapp.display import set_logging, Display
 
 logger = logging.getLogger(__name__)
 
@@ -144,6 +144,7 @@ class CLI():
 
     def __init__(self):
         self.parser = self.create_parser()
+        self.display = Display()
 
     def create_parser(self):
 
@@ -249,6 +250,14 @@ class CLI():
             "--providerapi",
             dest="providerapi",
             help='Value for providerapi answers option.')
+        globals_parser.add_argument(
+            "--logging-output",
+            dest="logging_output",
+            choices=['cockpit', 'stdout', 'none'],
+            help="Override the default logging output."
+                 "stdout: We will only log to stdout/stderr"
+                 "cockpit: Used with cockpit integration"
+                 "none: atomicapp will disable any logging")
 
         # === "run" SUBPARSER ===
         run_subparser = toplevel_subparsers.add_parser(
@@ -399,10 +408,15 @@ class CLI():
         if args.mode:
             args.action = args.mode     # Allow mode to override 'action'
         cmdline.insert(0, args.action)  # Place 'action' at front
-        logger.info("Action/Mode Selected is: %s" % args.action)
 
         # Finally, parse args and give error if necessary
         args = self.parser.parse_args(cmdline)
+
+        # Set the logging
+        set_logging(args.verbose, args.quiet, args.logging_output)
+
+        # Finally output the action/mode selected
+        logger.info("Action/Mode Selected is: %s" % args.action)
 
         # In the case of Atomic CLI we want to allow the user to specify
         # a directory if they want to for "run". For that reason we won't
@@ -425,14 +439,6 @@ class CLI():
             if hasattr(args, item) and getattr(args, item) is not None:
                 args.cli_answers[item] = getattr(args, item)
 
-        # Set logging level
-        if args.verbose:
-            set_logging(level=logging.DEBUG)
-        elif args.quiet:
-            set_logging(level=logging.WARNING)
-        else:
-            set_logging(level=logging.INFO)
-
         # Now that we have set the logging level let's print out the cmdline
         logger.debug("Final parsed cmdline: {}".format(' '.join(cmdline)))
 
@@ -448,14 +454,13 @@ class CLI():
         except KeyboardInterrupt:
             pass
         except AlreadyLocked:
-            logger.error("Could not proceed - there is probably another instance of Atomic App running on this machine.")
+            self.display.error("Could not proceed - there is probably another instance of Atomic App running on this machine.")
         except Exception as ex:
             if args.verbose:
                 raise
             else:
-                logger.error("Exception caught: %s", repr(ex))
-                logger.error(
-                    "Run the command again with -v option to get more information.")
+                self.display.error("Exception caught: %s" % repr(ex))
+                self.display.error("Run the command again with -v option to get more information.")
         finally:
             if lock.i_am_locking():
                 lock.release()
