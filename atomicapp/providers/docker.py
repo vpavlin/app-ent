@@ -20,12 +20,10 @@
 import os
 import subprocess
 import re
-import logging
 from atomicapp.constants import DEFAULT_CONTAINER_NAME, DEFAULT_NAMESPACE
 from atomicapp.plugin import Provider, ProviderFailedException
 from atomicapp.utils import Utils
-
-logger = logging.getLogger(__name__)
+from atomicapp.display import Display
 
 
 class DockerProvider(Provider):
@@ -34,21 +32,22 @@ class DockerProvider(Provider):
     def init(self):
         self.namespace = DEFAULT_NAMESPACE
         self.default_name = DEFAULT_CONTAINER_NAME
+        self.display = Display()
 
-        logger.debug("Given config: %s", self.config)
+        self.display.debug("Given config: %s" % self.config)
         if self.config.get("namespace"):
             self.namespace = self.config.get("namespace")
-        logger.debug("Namespace: %s", self.namespace)
+        self.display.debug("Namespace: %s" % self.namespace)
 
         if "image" in self.config:
             self.image = Utils.sanitizeName(self.config.get("image"))
         else:
             self.image = Utils.getUniqueUUID()
-            logger.warning("The artifact name has not been provided within Nulecule, using a UUID instead")
-            logger.debug("No image name found for artifact, using UUID %s in container name" % self.image)
+            self.display.warning("The artifact name has not been provided within Nulecule, using a UUID instead")
+            self.display.debug("No image name found for artifact, using UUID %s in container name" % self.image)
 
         if self.dryrun:
-            logger.info("DRY-RUN: Did not check Docker version compatibility")
+            self.display.info("DRY-RUN: Did not check Docker version compatibility")
         else:
             cmd_check = ["docker", "version"]
             try:
@@ -72,13 +71,13 @@ class DockerProvider(Provider):
     def _get_containers(self):
         docker_cmd = 'docker inspect --format="{{ .Name }}" $(docker ps -aq --no-trunc) | sed "s,/,,g"'
         if self.dryrun:
-            logger.info("DRY-RUN: %s", docker_cmd)
+            self.display.info("DRY-RUN: %s" % docker_cmd)
             return []
         else:
             return dict((line, 1) for line in subprocess.check_output(docker_cmd, shell=True).splitlines())
 
     def run(self):
-        logger.info("Deploying to provider: Docker")
+        self.display.info("Deploying to provider: Docker")
         for container in self._get_containers():
             if re.match("%s_+%s+_+[a-zA-Z0-9]{12}" % (self.namespace, self.image), container):
                 raise ProviderFailedException("Container with name %s-%s already deployed in Docker" % (self.namespace, self.image))
@@ -93,18 +92,18 @@ class DockerProvider(Provider):
             # If --name is provided, do not re-name due to potential linking of containers. Warn user instead.
             # Else use namespace provided within answers.conf
             if '--name' in run_args:
-                logger.info("WARNING: Using --name provided within artifact file.")
+                self.display.info("WARNING: Using --name provided within artifact file.")
             else:
                 run_args.insert(run_args.index('run') + 1, "--name=%s_%s_%s" % (self.namespace, self.image, Utils.getUniqueUUID()))
 
             cmd = run_args
             if self.dryrun:
-                logger.info("DRY-RUN: %s", " ".join(cmd))
+                self.display.info("DRY-RUN: %s" % " ".join(cmd))
             else:
                 subprocess.check_call(cmd)
 
     def stop(self):
-        logger.info("Undeploying to provider: Docker")
+        self.display.info("Undeploying to provider: Docker")
         artifact_names = list()
 
         # Gather the list of containers within /artifacts/docker
@@ -124,7 +123,7 @@ class DockerProvider(Provider):
             # If any artifacts are labelled by name, add it to a container dict list
             if '--name' in run_args:
                 artifact_names.append(run_args[run_args.index('--name') + 1])
-                logger.debug("artifact cnames: %s", artifact_names)
+                self.display.debug("artifact cnames: %s" % artifact_names)
 
         # Regex checks for matching container name and kills it. ex. atomic_mariadb-atomicapp-app_9dfb369ed2a0
         for container in self._get_containers():
@@ -133,9 +132,9 @@ class DockerProvider(Provider):
             else:
                 m = re.match("%s_+%s+_+[a-zA-Z0-9]{12}" % (self.namespace, self.image), container)
             if m:
-                logger.info("Stopping container: %s", container)
+                self.display.info("Stopping container: %s" % container)
                 cmd = ["docker", "stop", container]
                 if self.dryrun:
-                    logger.info("DRY-RUN: STOPPING CONTAINER %s", " ".join(cmd))
+                    self.display.info("DRY-RUN: STOPPING CONTAINER %s" % " ".join(cmd))
                 else:
                     subprocess.check_call(cmd)

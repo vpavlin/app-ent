@@ -1,15 +1,12 @@
 import os
 import subprocess
 import uuid
-import logging
 
 from atomicapp.constants import (APP_ENT_PATH,
                                  MAIN_FILE)
 from atomicapp.utils import Utils
 from atomicapp.nulecule.exceptions import NuleculeException
 from atomicapp.display import Display
-
-logger = logging.getLogger(__name__)
 
 
 class DockerHandler(object):
@@ -48,16 +45,16 @@ class DockerHandler(object):
             None
         """
         if not self.is_image_present(image) or update:
-            logger.info('Pulling Docker image: %s' % image)
+            self.display.info('Pulling Docker image: %s' % image)
             self.display.info('Pulling Docker image: %s' % image, "cockpit")
             pull_cmd = [self.docker_cli, 'pull', image]
-            logger.debug(' '.join(pull_cmd))
+            self.display.debug(' '.join(pull_cmd))
         else:
-            logger.info('Skipping pulling Docker image: %s' % image)
+            self.display.info('Skipping pulling Docker image: %s' % image)
             return
 
         if self.dryrun:
-            logger.info("DRY-RUN: %s", pull_cmd)
+            self.display.info("DRY-RUN: %s", pull_cmd)
         elif subprocess.call(pull_cmd) != 0:
             raise Exception("Could not pull Docker image %s" % image)
 
@@ -78,7 +75,7 @@ class DockerHandler(object):
         Returns:
             None
         """
-        logger.info(
+        self.display.info(
             'Extracting nulecule data from image: %s to %s' % (image, dest))
         if self.dryrun:
             return
@@ -86,7 +83,7 @@ class DockerHandler(object):
         # Create dummy container
         run_cmd = [
             self.docker_cli, 'create', '--entrypoint', '/bin/true', image]
-        logger.debug('Creating docker container: %s' % ' '.join(run_cmd))
+        self.display.debug('Creating docker container: %s' % ' '.join(run_cmd))
         container_id = subprocess.check_output(run_cmd).strip()
 
         # Copy files out of dummy container to tmpdir
@@ -94,7 +91,7 @@ class DockerHandler(object):
         cp_cmd = [self.docker_cli, 'cp',
                   '%s:/%s' % (container_id, source),
                   tmpdir]
-        logger.debug(
+        self.display.debug(
             'Copying data from Docker container: %s' % ' '.join(cp_cmd))
         subprocess.call(cp_cmd)
 
@@ -121,20 +118,20 @@ class DockerHandler(object):
                     (existing_id, new_id))
             # If app exists and no update requested then move on
             if update:
-                logger.info("App exists locally. Performing update...")
+                self.display.info("App exists locally. Performing update...")
             else:
-                logger.info("App exists locally and no update requested")
+                self.display.info("App exists locally and no update requested")
                 return
 
         # Copy files
-        logger.debug('Copying nulecule data from %s to %s' % (src, dest))
+        self.display.debug('Copying nulecule data from %s to %s' % (src, dest))
         Utils.copy_dir(src, dest, update)
-        logger.debug('Removing tmp dir: %s' % tmpdir)
+        self.display.debug('Removing tmp dir: %s' % tmpdir)
         Utils.rm_dir(tmpdir)
 
         # Clean up dummy container
         rm_cmd = [self.docker_cli, 'rm', '-f', container_id]
-        logger.debug('Removing Docker container: %s' % ' '.join(rm_cmd))
+        self.display.debug('Removing Docker container: %s' % ' '.join(rm_cmd))
         subprocess.call(rm_cmd)
 
     def is_image_present(self, image):

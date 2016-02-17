@@ -28,6 +28,7 @@ from urllib import urlencode
 import websocket
 
 from atomicapp.utils import Utils
+from atomicapp.display import Display
 from atomicapp.plugin import Provider, ProviderFailedException
 from atomicapp.constants import (ACCESS_TOKEN_KEY,
                                  ANSWERS_FILE,
@@ -37,8 +38,6 @@ from atomicapp.constants import (ACCESS_TOKEN_KEY,
                                  PROVIDER_TLS_VERIFY_KEY,
                                  PROVIDER_CA_KEY)
 from requests.exceptions import SSLError
-import logging
-logger = logging.getLogger(__name__)
 
 # If running in an openshift POD via `oc new-app`, the ca file is here
 OPENSHIFT_POD_CA_FILE = "/run/secrets/kubernetes.io/serviceaccount/ca.crt"
@@ -52,22 +51,24 @@ class OpenshiftClient(object):
         self.access_token = access_token
         self.provider_tls_verify = provider_tls_verify
         self.provider_ca = provider_ca
+        self.display = Display()
 
         # construct full urls for api endpoints
         self.kubernetes_api = urljoin(self.providerapi, "api/v1/")
         self.openshift_api = urljoin(self.providerapi, "oapi/v1/")
 
-        logger.debug("kubernetes_api = %s", self.kubernetes_api)
-        logger.debug("openshift_api = %s", self.openshift_api)
+        self.display.debug("kubernetes_api = %s" % self.kubernetes_api)
+        self.display.debug("openshift_api = %s" % self.openshift_api)
 
     def test_connection(self):
         """
         Test connection to OpenShift server
 
+
         Raises:
             ProviderFailedException - Invalid SSL/TLS certificate
         """
-        logger.debug("Testing connection to OpenShift server")
+        self.display.debug("Testing connection to OpenShift server")
 
         if self.provider_ca and not os.path.exists(self.provider_ca):
             raise ProviderFailedException("Unable to find CA path %s"
@@ -106,7 +107,7 @@ class OpenshiftClient(object):
         # convert resources list of dicts to list of names
         oapi_resources = [res['name'] for res in oapi_resources]
 
-        logger.debug("Openshift resources %s", oapi_resources)
+        self.display.debug("Openshift resources %s" % oapi_resources)
 
         return oapi_resources
 
@@ -127,7 +128,7 @@ class OpenshiftClient(object):
         # convert resources list of dicts to list of names
         kapi_resources = [res['name'] for res in kapi_resources]
 
-        logger.debug("Kubernetes resources %s", kapi_resources)
+        self.display.debug("Kubernetes resources %s" % kapi_resources)
 
         return kapi_resources
 
@@ -138,11 +139,11 @@ class OpenshiftClient(object):
                                     verify=self._requests_tls_verify(),
                                     data=artifact)
         if status_code == 201:
-            logger.info("Object %s successfully deployed.",
-                        artifact['metadata']['name'])
+            self.display.info("Object %s successfully deployed." %
+                              artifact['metadata']['name'])
         else:
             msg = "%s %s" % (status_code, return_data)
-            logger.error(msg)
+            self.display.error(msg)
             # TODO: remove running components (issue: #428)
             raise ProviderFailedException(msg)
 
@@ -161,10 +162,10 @@ class OpenshiftClient(object):
                                     url,
                                     verify=self._requests_tls_verify())
         if status_code == 200:
-            logger.info("Successfully deleted.")
+            self.display.info("Successfully deleted.")
         else:
             msg = "%s %s" % (status_code, return_data)
-            logger.error(msg)
+            self.display.error(msg)
             raise ProviderFailedException(msg)
 
     def scale(self, url, replicas):
@@ -185,10 +186,10 @@ class OpenshiftClient(object):
                                     data=patch,
                                     verify=self._requests_tls_verify())
         if status_code == 200:
-            logger.info("Successfully scaled to %s replicas", replicas)
+            self.display.info("Successfully scaled to %s replicas" % replicas)
         else:
             msg = "%s %s" % (status_code, return_data)
-            logger.error(msg)
+            self.display.error(msg)
             raise ProviderFailedException(msg)
 
     def process_template(self, url, template):
@@ -198,12 +199,12 @@ class OpenshiftClient(object):
                                     verify=self._requests_tls_verify(),
                                     data=template)
         if status_code == 201:
-            logger.info("template processed %s", template['metadata']['name'])
-            logger.debug("processed template %s", return_data)
+            self.display.info("template processed %s" % template['metadata']['name'])
+            self.display.debug("processed template %s" % return_data)
             return return_data['objects']
         else:
             msg = "%s %s" % (status_code, return_data)
-            logger.error(msg)
+            self.display.error(msg)
             raise ProviderFailedException(msg)
 
     def _requests_tls_verify(self):
@@ -251,7 +252,7 @@ class OpenshiftClient(object):
 
         # Convert url from http(s) protocol to wss protocol
         url = 'wss://' + url.split('://', 1)[-1]
-        logger.debug('url: {}'.format(url))
+        self.display.debug('url: {}'.format(url))
 
         results = []
 
@@ -333,6 +334,7 @@ class OpenShiftProvider(Provider):
     openshift_artifacts = {}
 
     def init(self):
+        self.display = Display()
         self.openshift_artifacts = {}
 
         self._set_config_values()
@@ -369,7 +371,7 @@ class OpenShiftProvider(Provider):
         return self.namespace
 
     def run(self):
-        logger.debug("Deploying to OpenShift")
+        self.display.debug("Deploying to OpenShift")
         # TODO: remove running components if one component fails issue:#428
         for kind, objects in self.openshift_artifacts.iteritems():
             for artifact in objects:
@@ -377,7 +379,7 @@ class OpenShiftProvider(Provider):
                 url = self._get_url(namespace, kind)
 
                 if self.dryrun:
-                    logger.info("DRY-RUN: %s", url)
+                    self.display.info("DRY-RUN: %s" % url)
                     continue
                 self.oc.deploy(url, artifact)
 
@@ -392,7 +394,7 @@ class OpenShiftProvider(Provider):
         by `oc` command.
         When using API calls we have to cascade deletion manually.
         """
-        logger.debug("Starting undeploy")
+        self.display.debug("Starting undeploy")
         delete_artifacts = []
         for kind, objects in self.openshift_artifacts.iteritems():
             # Add deployment configs to beginning of the list so they are deleted first.
@@ -417,7 +419,7 @@ class OpenShiftProvider(Provider):
                                               " name in artifacts metadata "
                                               "artifact=%s" % artifact)
 
-            logger.info("Undeploying artifact name=%s kind=%s" % (name, kind))
+            self.display.info("Undeploying artifact name=%s kind=%s" % (name, kind))
 
             # If this is a deployment config we need to delete all
             # replication controllers that were created by this.
@@ -454,12 +456,12 @@ class OpenShiftProvider(Provider):
             # controller and we can safely delete it.
             if kind.lower() == "replicationcontroller":
                 if self.dryrun:
-                    logger.info("DRY-RUN: SCALE %s down to 0", url)
+                    self.display.info("DRY-RUN: SCALE %s down to 0" % url)
                 else:
                     self.oc.scale(url, 0)
 
             if self.dryrun:
-                logger.info("DRY-RUN: DELETE %s", url)
+                self.display.info("DRY-RUN: DELETE %s" % url)
             else:
                 self.oc.delete(url)
 
@@ -470,7 +472,7 @@ class OpenShiftProvider(Provider):
         to self.openshift_artifacts
         """
         for artifact in self.artifacts:
-            logger.debug("Processing artifact: %s", artifact)
+            self.display.debug("Processing artifact: %s" % artifact)
             data = None
             with open(os.path.join(self.path, artifact), "r") as fp:
                 data = anymarkup.parse(fp, force_types=None)
@@ -528,7 +530,7 @@ class OpenShiftProvider(Provider):
         Returns:
             List of objects from processed template.
         """
-        logger.debug("processing template: %s", template)
+        self.display.debug("processing template: %s" % template)
         url = self._get_url(self._get_namespace(template), "processedtemplates")
         return self.oc.process_template(url, template)
 
@@ -598,7 +600,7 @@ class OpenShiftProvider(Provider):
             params = {"access_token": self.access_token}
 
         url = urljoin(url, "?%s" % urlencode(params))
-        logger.debug("url: %s", url)
+        self.display.debug("url: %s" % url)
         return url
 
     def _parse_kubeconf(self, filename):
@@ -633,7 +635,7 @@ class OpenShiftProvider(Provider):
             user:
                 token: abcdefghijklmnopqrstuvwxyz0123456789ABCDEF
         """
-        logger.debug("Parsing %s", filename)
+        self.display.debug("Parsing %s" % filename)
 
         with open(filename, 'r') as fp:
             kubecfg = anymarkup.parse(fp.read())
@@ -661,7 +663,7 @@ class OpenShiftProvider(Provider):
 
         current_context = kubecfg["current-context"]
 
-        logger.debug("current context: %s", current_context)
+        self.display.debug("current context: %s" % current_context)
 
         context = None
         for co in kubecfg["contexts"]:
@@ -684,9 +686,9 @@ class OpenShiftProvider(Provider):
         if not cluster or not user:
             raise ProviderFailedException()
 
-        logger.debug("context: %s", context)
-        logger.debug("cluster: %s", cluster)
-        logger.debug("user: %s", user)
+        self.display.debug("context: %s" % context)
+        self.display.debug("cluster: %s" % cluster)
+        self.display.debug("user: %s" % user)
 
         url = cluster["cluster"]["server"]
         token = user["user"]["token"]
@@ -764,16 +766,16 @@ class OpenShiftProvider(Provider):
                     msg = "There are conflicting values in %s (%s) and %s (%s)"\
                         % (self.config_file, providerconfig[k], ANSWERS_FILE,
                            answers[k])
-                    logger.error(msg)
+                    self.display.error(msg)
                     raise ProviderFailedException(msg)
 
-        logger.debug("config values: %s" % result)
+        self.display.debug("config values: %s" % result)
 
         # this items are required, they have to be not None
         for k in [PROVIDER_API_KEY, ACCESS_TOKEN_KEY, NAMESPACE_KEY]:
             if result[k] is None:
                 msg = "You need to set %s in %s" % (k, ANSWERS_FILE)
-                logger.error(msg)
+                self.display.error(msg)
                 raise ProviderFailedException(msg)
 
         # set config values
