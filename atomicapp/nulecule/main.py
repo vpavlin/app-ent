@@ -19,6 +19,7 @@ from atomicapp.constants import (GLOBAL_CONF,
 from atomicapp.nulecule.base import Nulecule
 from atomicapp.nulecule.exceptions import NuleculeException
 from atomicapp.utils import Utils
+from atomicapp.display import Display
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,7 @@ class NuleculeManager(object):
         self.answers_file = None  # The path to an answer file
         self.app_path = None  # The path where the app resides or will reside
         self.image = None     # The container image to pull the app from
+        self.display = Display()
 
         # Adjust app_spec, destination, and answer file paths if absolute.
         if os.path.isabs(app_spec):
@@ -190,6 +192,8 @@ class NuleculeManager(object):
         self._write_answers(
             os.path.join(self.app_path, ANSWERS_FILE_SAMPLE),
             runtime_answers, answers_format)
+
+        self.display.info("Install Successful.", "cockpit")
 
     def run(self, cli_provider, answers_output, ask,
             answers_format=ANSWERS_FILE_SAMPLE_FORMAT, **kwargs):
