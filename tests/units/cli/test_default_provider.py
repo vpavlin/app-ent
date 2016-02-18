@@ -61,7 +61,7 @@ class TestCli(object):
         # Run the dry-run command
         with pytest.raises(SystemExit) as exec_info:
             self.exec_cli(command)
-        nil, out = capsys.readouterr()
+        out, err = capsys.readouterr()
 
         # Tear down and remove all those useless generated files
         self.tear_down()

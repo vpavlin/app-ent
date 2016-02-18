@@ -5,6 +5,7 @@ from atomicapp.constants import (GLOBAL_CONF,
                                  PROVIDER_KEY)
 from atomicapp.utils import Utils
 from atomicapp.plugin import Plugin
+from atomicapp.display import Display
 
 
 class NuleculeBase(object):
@@ -15,6 +16,7 @@ class NuleculeBase(object):
     """
 
     def __init__(self, basepath, params, namespace):
+        self.display = Display()
         self.plugin = Plugin()
         self.plugin.load_plugins()
         self.basepath = basepath
@@ -44,6 +46,8 @@ class NuleculeBase(object):
                 config.get(GLOBAL_CONF, {}).get(param[NAME_KEY])
             if value is None and (ask or (
                     not skip_asking and param.get(DEFAULTNAME_KEY) is None)):
+                self.display.info("%s is missing in answers.conf ." %
+                                  param[NAME_KEY], "cockpit")
                 value = Utils.askFor(param[NAME_KEY], param)
             elif value is None:
                 value = param.get(DEFAULTNAME_KEY)

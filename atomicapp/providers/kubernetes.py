@@ -18,14 +18,12 @@
 """
 
 import anymarkup
-import logging
 import os
 from string import Template
 
 from atomicapp.plugin import Provider, ProviderFailedException
-from atomicapp.utils import printErrorStatus, Utils
-
-logger = logging.getLogger(__name__)
+from atomicapp.utils import Utils
+from atomicapp.display import Display
 
 
 class KubernetesProvider(Provider):
@@ -39,22 +37,24 @@ class KubernetesProvider(Provider):
     kubectl = None
 
     def init(self):
+        self.display = Display()
         self.namespace = "default"
 
         self.k8s_manifests = []
 
-        logger.debug("Given config: %s", self.config)
+        self.display.debug("Given config: %s" % self.config)
         if self.config.get("namespace"):
             self.namespace = self.config.get("namespace")
 
-        logger.info("Using namespace %s", self.namespace)
+        self.display.info("Using namespace %s" % self.namespace)
         if self.container:
             self.kubectl = self._find_kubectl(Utils.getRoot())
             kube_conf_path = "/etc/kubernetes"
             host_kube_conf_path = os.path.join(Utils.getRoot(), kube_conf_path.lstrip("/"))
             if not os.path.exists(kube_conf_path) and os.path.exists(host_kube_conf_path):
                 if self.dryrun:
-                    logger.info("DRY-RUN: link %s from %s" % (kube_conf_path, host_kube_conf_path))
+                    self.display.info("DRY-RUN: link %s from %s" %
+                                      (kube_conf_path, host_kube_conf_path))
                 else:
                     os.symlink(host_kube_conf_path, kube_conf_path)
         else:
@@ -84,15 +84,15 @@ class KubernetesProvider(Provider):
 
         test_paths = ['/usr/bin/kubectl', '/usr/local/bin/kubectl']
         if self.config.get("provider_cli"):
-            logger.info("caller gave provider_cli: " + self.config.get("provider_cli"))
+            self.display.info("caller gave provider_cli: " + self.config.get("provider_cli"))
             test_paths.insert(0, self.config.get("provider_cli"))
 
         for path in test_paths:
             test_path = prefix + path
-            logger.info("trying kubectl at " + test_path)
+            self.display.info("trying kubectl at " + test_path)
             kubectl = test_path
             if os.access(kubectl, os.X_OK):
-                logger.info("found kubectl at " + test_path)
+                self.display.info("found kubectl at " + test_path)
                 return kubectl
 
         raise ProviderFailedException("No kubectl found in %s" % ":".join(test_paths))
@@ -105,9 +105,13 @@ class KubernetesProvider(Provider):
         """
 
         if self.dryrun:
-            logger.info("DRY-RUN: %s", " ".join(cmd))
+            self.display.info("DRY-RUN: %s" % " ".join(cmd))
         else:
-            ec, stdout, stderr = Utils.run_cmd(cmd, checkexitcode=True)
+            try:
+                ec, stdout, stderr = Utils.run_cmd(cmd, checkexitcode=True)
+            except Exception as e:
+                self.display.error("cmd failed: %s" % e, "cockpit")  # cockpit logging
+                raise
             return stdout
 
     def process_k8s_artifacts(self):
@@ -117,13 +121,13 @@ class KubernetesProvider(Provider):
         for artifact in self.artifacts:
             data = None
             with open(os.path.join(self.path, artifact), "r") as fp:
-                logger.debug(os.path.join(self.path, artifact))
+                self.display.debug(os.path.join(self.path, artifact))
                 try:
                     data = anymarkup.parse(fp)
                 except Exception:
                     msg = "Error processing %s artifcats, Error:" % os.path.join(
                         self.path, artifact)
-                    printErrorStatus(msg)
+                    self.display.error(msg, "cockpit")
                     raise
             if "kind" in data:
                 self.k8s_manifests.append((data["kind"].lower(), artifact))
@@ -170,7 +174,7 @@ class KubernetesProvider(Provider):
     def run(self):
         """Deploys the app by given resource manifests.
         """
-        logger.info("Deploying to Kubernetes")
+        self.display.info("Deploying to Kubernetes")
         self.process_k8s_artifacts()
 
         for kind, artifact in self.k8s_manifests:
@@ -189,7 +193,7 @@ class KubernetesProvider(Provider):
         Undeploy operation first scale down the replicas to 0 and then deletes
         the resource from cluster.
         """
-        logger.info("Undeploying from Kubernetes")
+        self.display.info("Undeploying from Kubernetes")
         self.process_k8s_artifacts()
 
         for kind, artifact in self.k8s_manifests:
@@ -212,10 +216,10 @@ class KubernetesProvider(Provider):
         Curently run is the only function implemented for k8s persistent storage
         """
 
-        logger.debug("Persistent storage enabled! Running action: %s" % action)
+        self.display.debug("Persistent storage enabled! Running action: %s" % action)
 
         if action not in ['run']:
-            logger.warning(
+            self.display.warning(
                 "%s action is not available for provider %s. Doing nothing." %
                 (action, self.key))
             return
@@ -243,12 +247,12 @@ class KubernetesProvider(Provider):
             os.unlink(tmp_file)
 
     def _check_persistent_volumes(self):
-            cmd = [self.kubectl, "get", "pv"]
-            if self.config_file:
-                cmd.append("--kubeconfig=%s" % self.config_file)
-            lines = self._call(cmd)
+        cmd = [self.kubectl, "get", "pv"]
+        if self.config_file:
+            cmd.append("--kubeconfig=%s" % self.config_file)
+        lines = self._call(cmd)
 
-            # If there are no persistent volumes to claim, warn the user
-            if not self.dryrun and len(lines.split("\n")) == 2:
-                logger.warning("No persistent volumes detected in Kubernetes. Volume claim will not "
-                               "initialize unless persistent volumes exist.")
+        # If there are no persistent volumes to claim, warn the user
+        if not self.dryrun and len(lines.split("\n")) == 2:
+            self.display.warning("No persistent volumes detected in Kubernetes. Volume claim will not "
+                                 "initialize unless persistent volumes exist.")

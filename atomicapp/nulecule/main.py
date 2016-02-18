@@ -2,7 +2,6 @@
 import anymarkup
 import copy
 import distutils.dir_util
-import logging
 import os
 import tempfile
 import urlparse
@@ -19,8 +18,7 @@ from atomicapp.constants import (GLOBAL_CONF,
 from atomicapp.nulecule.base import Nulecule
 from atomicapp.nulecule.exceptions import NuleculeException
 from atomicapp.utils import Utils
-
-logger = logging.getLogger(__name__)
+from atomicapp.display import Display
 
 
 class NuleculeManager(object):
@@ -47,6 +45,7 @@ class NuleculeManager(object):
         self.answers_file = None  # The path to an answer file
         self.app_path = None  # The path where the app resides or will reside
         self.image = None     # The container image to pull the app from
+        self.display = Display()
 
         # Adjust app_spec, destination, and answer file paths if absolute.
         if os.path.isabs(app_spec):
@@ -63,7 +62,7 @@ class NuleculeManager(object):
         # location then he provides 'none'. If that is the case we'll
         # use a temporary directory
         if destination and destination.lower() == 'none':
-            logger.debug("'none' destination requested. Using tmp dir")
+            self.display.debug("'none' destination requested. Using tmp dir")
             destination = tempfile.mkdtemp(prefix='atomicapp')
 
         # Determine if the user passed us an image or a path to an app
@@ -85,8 +84,8 @@ class NuleculeManager(object):
             else:
                 self.app_path = Utils.getNewAppCacheDir(self.image)
 
-        logger.debug("NuleculeManager init app_path: %s", self.app_path)
-        logger.debug("NuleculeManager init    image: %s", self.image)
+        self.display.debug("NuleculeManager init app_path: %s" % self.app_path)
+        self.display.debug("NuleculeManager init    image: %s" % self.image)
 
         # Create the app_path if it doesn't exist yet
         if not os.path.isdir(self.app_path):
@@ -115,8 +114,8 @@ class NuleculeManager(object):
         Returns:
             A Nulecule instance.
         """
-        logger.debug('Request to unpack to %s to %s' %
-                     (self.image, self.app_path))
+        self.display.debug('Request to unpack to %s to %s' %
+                           (self.image, self.app_path))
 
         # If the user provided an image then unpack it and return the
         # resulting Nulecule. Else, load from existing path
@@ -190,6 +189,8 @@ class NuleculeManager(object):
         self._write_answers(
             os.path.join(self.app_path, ANSWERS_FILE_SAMPLE),
             runtime_answers, answers_format)
+
+        self.display.info("Install Successful.", "cockpit")
 
     def run(self, cli_provider, answers_output, ask,
             answers_format=ANSWERS_FILE_SAMPLE_FORMAT, **kwargs):
@@ -287,8 +288,8 @@ class NuleculeManager(object):
 
             # If this is a url then download answers file to app directory
             if urlparse.urlparse(self.answers_file).scheme != "":
-                logger.debug("Retrieving answers file from: {}"
-                             .format(self.answers_file))
+                self.display.debug("Retrieving answers file from: {}"
+                                   .format(self.answers_file))
                 with open(app_path_answers, 'w+') as f:
                     stream = urllib.urlopen(self.answers_file)
                     f.write(stream.read())
@@ -319,9 +320,9 @@ class NuleculeManager(object):
         Returns:
             None
         """
-        logger.debug("Writing answers to file.")
-        logger.debug("FILE: %s", path)
-        logger.debug("ANSWERS: %s", answers)
+        self.display.debug("Writing answers to file.")
+        self.display.debug("FILE: %s" % path)
+        self.display.debug("ANSWERS: %s" % answers)
         anymarkup.serialize_file(answers, path, format=answers_format)
 
     # TODO - once we rework config data we shouldn't need this

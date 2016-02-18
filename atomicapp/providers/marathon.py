@@ -19,14 +19,12 @@
 
 import anymarkup
 import urlparse
-import logging
 import os
 from atomicapp.plugin import Provider, ProviderFailedException
 from atomicapp.utils import printErrorStatus
 from atomicapp.utils import Utils
 from atomicapp.constants import PROVIDER_API_KEY
-
-logger = logging.getLogger(__name__)
+from atomicapp.display import Display
 
 
 class Marathon(Provider):
@@ -40,13 +38,14 @@ class Marathon(Provider):
 
     def init(self):
         self.marathon_artifacts = []
+        self.display = Display()
 
-        logger.debug("Given config: %s", self.config)
+        self.display.debug("Given config: %s" % self.config)
         if self.config.get(PROVIDER_API_KEY):
             self.marathon_api = self.config.get(PROVIDER_API_KEY)
             self.marathon_api = urlparse.urljoin(self.marathon_api, "v2/")
 
-        logger.debug("marathon_api = %s", self.marathon_api)
+        self.display.debug("marathon_api = %s" % self.marathon_api)
         self._process_artifacts()
 
     def run(self):
@@ -56,20 +55,20 @@ class Marathon(Provider):
             url = urlparse.urljoin(self.marathon_api, "apps/")
 
             if self.dryrun:
-                logger.info("DRY-RUN: %s", url)
+                self.display.info("DRY-RUN: %s" % url)
                 continue
 
-            logger.debug("Deploying appid: %s", artifact["id"])
+            self.display.debug("Deploying appid: %s" % artifact["id"])
             (status_code, return_data) = \
                 Utils.make_rest_request("post", url, data=artifact)
             if status_code == 201:
-                logger.info(
-                    "Marathon app %s sucessfully deployed.",
+                self.display.info(
+                    "Marathon app %s sucessfully deployed." %
                     artifact["id"])
             else:
                 msg = "Error deploying app: %s, Marathon API response %s - %s" % (
                     artifact["id"], status_code, return_data)
-                logger.error(msg)
+                self.display.error(msg)
                 raise ProviderFailedException(msg)
 
     def stop(self):
@@ -83,20 +82,20 @@ class Marathon(Provider):
                 artifact["id"])
 
             if self.dryrun:
-                logger.info("DRY-RUN: %s", url)
+                self.display.info("DRY-RUN: %s" % url)
                 continue
 
-            logger.debug("Deleting appid: %s", artifact["id"])
+            self.display.debug("Deleting appid: %s" % artifact["id"])
             (status_code, return_data) =  \
                 Utils.make_rest_request("delete", url, data=artifact)
             if status_code == 200:
-                logger.info(
-                    "Marathon app %s sucessfully deleted.",
+                self.display.info(
+                    "Marathon app %s sucessfully deleted." %
                     artifact["id"])
             else:
                 msg = "Error deleting app: %s, Marathon API response %s - %s" % (
                     artifact["id"], status_code, return_data)
-                logger.error(msg)
+                self.display.error(msg)
                 raise ProviderFailedException(msg)
 
     def _process_artifacts(self):
@@ -104,14 +103,14 @@ class Marathon(Provider):
         Parsed artifacts are saved  to self.marathon_artifacts
         """
         for artifact in self.artifacts:
-            logger.debug("Procesesing artifact: %s", artifact)
+            self.display.debug("Procesesing artifact: %s" % artifact)
             data = None
             with open(os.path.join(self.path, artifact), "r") as fp:
                 try:
                     # env variables in marathon artifacts have to be string:string
                     # force_types=None respects types from json file
                     data = anymarkup.parse(fp, force_types=None)
-                    logger.debug("Parsed artifact %s", data)
+                    self.display.debug("Parsed artifact %s" % data)
                     # every marathon app has to have id. 'id' key  is also used for showing messages
                     if "id" not in data.keys():
                         msg = "Error processing %s artifact. There is no id" % artifact

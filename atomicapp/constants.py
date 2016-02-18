@@ -54,6 +54,22 @@ ANSWERS_FILE_SAMPLE = "answers.conf.sample"
 ANSWERS_FILE_SAMPLE_FORMAT = 'ini'
 WORKDIR = ".workdir"
 LOCK_FILE = "/run/lock/atomicapp.lock"
+
+LOG_SYSLOG = "/dev/log"
+LOG_NAME = "atomicapp"
+LOG_CUSTOM_NAME = "atomicapp-custom"
+LOG_LEVELS = {
+    "notset": 0,
+    "debug": 10,
+    "info": 20,
+    "warning": 30,
+    "error": 40,
+    "critical": 50,
+    "default": 90,
+    "cockpit": 91,
+    "stdout": 92,
+    "none": 93
+}
 HOST_DIR = "/host"
 
 DEFAULT_PROVIDER = "kubernetes"

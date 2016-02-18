@@ -29,7 +29,6 @@ import uuid
 import requests
 from distutils.spawn import find_executable
 
-import logging
 
 from subprocess import Popen, PIPE
 from constants import (APP_ENT_PATH,
@@ -37,10 +36,12 @@ from constants import (APP_ENT_PATH,
                        EXTERNAL_APP_DIR,
                        HOST_DIR,
                        WORKDIR)
+from atomicapp.display import Display
 
 __all__ = ('Utils')
 
-logger = logging.getLogger(__name__)
+# Due to static methods in Utils
+display = Display()
 
 
 class AtomicAppUtilsException(Exception):
@@ -48,15 +49,15 @@ class AtomicAppUtilsException(Exception):
 
 # Following Methods(printStatus, printErrorStatus)
 #  are required for Cockpit or thirdparty management tool integration
-#  DONOT change the atomicapp.status.* prefix in the logger method.
+#  DONOT change the atomicapp.status.* prefix in the display method.
 
 
 def printStatus(message):
-    logger.info("atomicapp.status.info.message=" + str(message))
+    display.info("atomicapp.status.info.message=" + str(message))
 
 
 def printErrorStatus(message):
-    logger.info("atomicapp.status.error.message=" + str(message))
+    display.info("atomicapp.status.error.message=" + str(message))
 
 
 def find_binary(executable, path=None):
@@ -89,12 +90,13 @@ class Utils(object):
     __tmpdir = None
     __workdir = None
     target_path = None
+    display = Display()
 
     @property
     def workdir(self):
         if not self.__workdir:
             self.__workdir = os.path.join(self.target_path, WORKDIR)
-            logger.debug("Using working directory %s", self.__workdir)
+            display.debug("Using working directory %s" % self.__workdir)
             if not os.path.isdir(self.__workdir):
                 os.mkdir(self.__workdir)
 
@@ -104,7 +106,7 @@ class Utils(object):
     def tmpdir(self):
         if not self.__tmpdir:
             self.__tmpdir = tempfile.mkdtemp(prefix="nulecule-")
-            logger.info("Using temporary directory %s", self.__tmpdir)
+            display.info("Using temporary directory %s" % self.__tmpdir)
 
         return self.__tmpdir
 
@@ -132,7 +134,7 @@ class Utils(object):
         try:
             response = requests.get(url, verify=False)
             if response.status_code == 200:
-                logger.debug("Detected environment: openshift pod")
+                display.debug("Detected environment: openshift pod")
                 return True
         except:
             return False
@@ -197,7 +199,7 @@ class Utils(object):
 
     @staticmethod
     def getComponentName(graph_item):
-        # logger.debug("Getting name for %s", graph_item)
+        # display.debug("Getting name for %s", graph_item)
         if type(graph_item) is str or type(graph_item) is unicode:
             return os.path.basename(graph_item).split(":")[0]
         elif type(graph_item) is dict:
@@ -220,7 +222,7 @@ class Utils(object):
 
     @staticmethod
     def isExternal(graph_item):
-        logger.debug(graph_item)
+        display.debug(graph_item)
         if "artifacts" in graph_item:
             return False
 
@@ -263,8 +265,8 @@ class Utils(object):
         p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE)
         stdout, stderr = p.communicate(stdin)
         ec = p.returncode
-        logger.debug("\n<<< stdout >>>\n%s<<< end >>>\n", stdout)
-        logger.debug("\n<<< stderr >>>\n%s<<< end >>>\n", stderr)
+        display.debug("\n<<< stdout >>>\n%s<<< end >>>\n" % stdout)
+        display.debug("\n<<< stderr >>>\n%s<<< end >>>\n" % stderr)
 
         # If the exit code is an error then raise exception unless
         # we were asked not to.
@@ -298,9 +300,9 @@ class Utils(object):
 
             if constraints:
                 for constraint in constraints:
-                    logger.info("Checking pattern: %s", constraint["allowed_pattern"])
+                    display.info("Checking pattern: %s" % constraint["allowed_pattern"])
                     if not re.match("^%s$" % constraint["allowed_pattern"], value):
-                        logger.error(constraint["description"])
+                        display.error(constraint["description"])
                         repeat = True
 
         return value
@@ -335,7 +337,7 @@ class Utils(object):
         cli = find_executable("docker")
         if not cli:
             if dryrun:
-                logger.error("Could not find docker client")
+                display.error("Could not find docker client")
             else:
                 raise Exception("Could not find docker client")
 
@@ -373,7 +375,7 @@ class Utils(object):
             raise AtomicAppUtilsException(
                 "Provided answers file does not exist: %s" % answers_file)
 
-        logger.debug("Loading answers from file: %s", answers_file)
+        display.debug("Loading answers from file: %s" % answers_file)
         return anymarkup.parse_file(answers_file)
 
     @staticmethod
@@ -383,7 +385,7 @@ class Utils(object):
 
     @staticmethod
     def rm_dir(directory):
-        logger.debug('Recursively removing directory: %s' % directory)
+        display.debug('Recursively removing directory: %s' % directory)
         distutils.dir_util.remove_tree(directory)
 
     @staticmethod
@@ -429,11 +431,11 @@ class Utils(object):
             return_data = res.json()
         except requests.exceptions.ConnectTimeout:
             msg = "Timeout when connecting to  %s" % url
-            logger.error(msg)
+            display.error(msg)
             raise AtomicAppUtilsException(msg)
         except requests.exceptions.ReadTimeout:
             msg = "Timeout when reading from %s" % url
-            logger.error(msg)
+            display.error(msg)
             raise AtomicAppUtilsException(msg)
         except ValueError:
             # invalid json

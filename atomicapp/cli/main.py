@@ -21,11 +21,9 @@ import os
 import sys
 
 import argparse
-import logging
 from lockfile import LockFile
 from lockfile import AlreadyLocked
 
-from atomicapp import set_logging
 from atomicapp.constants import (__ATOMICAPPVERSION__,
                                  __NULECULESPECVERSION__,
                                  ANSWERS_FILE,
@@ -38,8 +36,7 @@ from atomicapp.constants import (__ATOMICAPPVERSION__,
 from atomicapp.nulecule import NuleculeManager
 from atomicapp.nulecule.exceptions import NuleculeException
 from atomicapp.utils import Utils
-
-logger = logging.getLogger(__name__)
+from atomicapp.display import set_logging, Display
 
 
 def print_app_location(app_path):
@@ -58,10 +55,10 @@ def cli_genanswers(args):
         Utils.rm_dir(nm.app_path)  # clean up files
         sys.exit(0)
     except NuleculeException as e:
-        logger.error(e)
+        Display().error(e)
         sys.exit(1)
     except Exception as e:
-        logger.error(e, exc_info=True)
+        Display().error(e)
         sys.exit(1)
 
 
@@ -82,10 +79,10 @@ def cli_fetch(args):
             print_app_location(nm.app_path)
         sys.exit(0)
     except NuleculeException as e:
-        logger.error(e)
+        Display().error(e)
         sys.exit(1)
     except Exception as e:
-        logger.error(e, exc_info=True)
+        Display().error(e)
         sys.exit(1)
 
 
@@ -106,10 +103,10 @@ def cli_run(args):
             print_app_location(nm.app_path)
         sys.exit(0)
     except NuleculeException as e:
-        logger.error(e)
+        Display().error(e)
         sys.exit(1)
     except Exception as e:
-        logger.error(e, exc_info=True)
+        Display().error(e)
         sys.exit(1)
 
 
@@ -120,10 +117,10 @@ def cli_stop(args):
         nm.stop(**argdict)
         sys.exit(0)
     except NuleculeException as e:
-        logger.error(e)
+        Display().error(e)
         sys.exit(1)
     except Exception as e:
-        logger.error(e, exc_info=True)
+        Display().error(e)
         sys.exit(1)
 
 
@@ -249,6 +246,14 @@ class CLI():
             "--providerapi",
             dest="providerapi",
             help='Value for providerapi answers option.')
+        globals_parser.add_argument(
+            "--logging-output",
+            dest="logging_output",
+            choices=['cockpit', 'stdout', 'none'],
+            help="Override the default logging output."
+                 "stdout: We will only log to stdout/stderr"
+                 "cockpit: Used with cockpit integration"
+                 "none: atomicapp will disable any logging")
 
         # === "run" SUBPARSER ===
         run_subparser = toplevel_subparsers.add_parser(
@@ -373,20 +378,6 @@ class CLI():
             cmdline = 'run -v --dest=none --provider=openshift /{}'
             cmdline = cmdline.format(APP_ENT_PATH).split()  # now a list
 
-        # If the user has elected to provide all arguments via the
-        # ATOMICAPP_ARGS environment variable then set it now
-        argstr = os.environ.get('ATOMICAPP_ARGS')
-        if argstr:
-            logger.debug("Setting cmdline args to: {}".format(argstr))
-            cmdline = argstr.split()
-
-        # If the user has elected to provide some arguments via the
-        # ATOMICAPP_APPEND_ARGS environment variable then add those now
-        argstr = os.environ.get('ATOMICAPP_APPEND_ARGS')
-        if argstr:
-            logger.debug("Appending args to cmdline: {}".format(argstr))
-            cmdline.extend(argstr.split())
-
         # We want to be able to place options anywhere on the command
         # line. We have added all global options to each subparser,
         # but subparsers require all options to be after the 'action'
@@ -399,10 +390,33 @@ class CLI():
         if args.mode:
             args.action = args.mode     # Allow mode to override 'action'
         cmdline.insert(0, args.action)  # Place 'action' at front
-        logger.info("Action/Mode Selected is: %s" % args.action)
 
         # Finally, parse args and give error if necessary
         args = self.parser.parse_args(cmdline)
+
+        # Set the logging
+        set_logging(args.verbose, args.quiet, args.logging_output)
+
+        # We set the display class late in the process due to gathering the
+        # args as well as setting the logging correctly.
+        display = Display()
+
+        # Finally output the action/mode selected
+        display.info("Action/Mode Selected is: %s" % args.action)
+
+        # If the user has elected to provide all arguments via the
+        # ATOMICAPP_ARGS environment variable then set it now
+        argstr = os.environ.get('ATOMICAPP_ARGS')
+        if argstr:
+            display.debug("Setting cmdline args to: {}".format(argstr))
+            cmdline = argstr.split()
+
+        # If the user has elected to provide some arguments via the
+        # ATOMICAPP_APPEND_ARGS environment variable then add those now
+        argstr = os.environ.get('ATOMICAPP_APPEND_ARGS')
+        if argstr:
+            display.debug("Appending args to cmdline: {}".format(argstr))
+            cmdline.extend(argstr.split())
 
         # In the case of Atomic CLI we want to allow the user to specify
         # a directory if they want to for "run". For that reason we won't
@@ -410,7 +424,7 @@ class CLI():
         # In this case pick up app_spec from $IMAGE env var (set by RUN label).
         if args.app_spec is None:
             if os.environ.get('IMAGE') is not None:
-                logger.debug("Setting app_spec based on $IMAGE env var")
+                display.debug("Setting app_spec based on $IMAGE env var")
                 args.app_spec = os.environ['IMAGE']
             else:
                 print("Error. Too few arguments. Must provide app_spec.")
@@ -425,16 +439,8 @@ class CLI():
             if hasattr(args, item) and getattr(args, item) is not None:
                 args.cli_answers[item] = getattr(args, item)
 
-        # Set logging level
-        if args.verbose:
-            set_logging(level=logging.DEBUG)
-        elif args.quiet:
-            set_logging(level=logging.WARNING)
-        else:
-            set_logging(level=logging.INFO)
-
         # Now that we have set the logging level let's print out the cmdline
-        logger.debug("Final parsed cmdline: {}".format(' '.join(cmdline)))
+        display.debug("Final parsed cmdline: {}".format(' '.join(cmdline)))
 
         lock = LockFile(os.path.join(Utils.getRoot(), LOCK_FILE))
         try:
@@ -448,14 +454,13 @@ class CLI():
         except KeyboardInterrupt:
             pass
         except AlreadyLocked:
-            logger.error("Could not proceed - there is probably another instance of Atomic App running on this machine.")
+            display.error("Could not proceed - there is probably another instance of Atomic App running on this machine.")
         except Exception as ex:
             if args.verbose:
                 raise
             else:
-                logger.error("Exception caught: %s", repr(ex))
-                logger.error(
-                    "Run the command again with -v option to get more information.")
+                display.error("Exception caught: %s" % repr(ex))
+                display.error("Run the command again with -v option to get more information.")
         finally:
             if lock.i_am_locking():
                 lock.release()
