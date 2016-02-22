@@ -15,6 +15,54 @@ propose changes to this document in a pull request.
 * Perform a [cursory search](https://github.com/issues?utf8=%E2%9C%93&q=is%3Aissue+repo%3Aprojectatomic%2Fatomicapp)
   to see if a similar issue has already been submitted
 
+## Developers
+
+First of all, fork the [repository](https://github.com/projectatomic/atomicapp) and clone your github repository:
+
+```shell
+$ git clone https://github.com/<your-username>/atomicapp
+```
+
+### Install this project for development
+
+Goto cloned repo and Simply run following commands
+
+```shell
+$ sudo pip install virtualenvwrapper
+$ cd atomicapp
+$ make develop
+```
+
+Goto the Nuleculized app directory and run
+
+```shell
+$ workon atomicapp
+$ sudo atomicapp run .
+```
+
+### Build
+```
+docker build -t [TAG] .
+```
+
+Just a call to Docker to package up the application and tag the resulting image.
+
+### Install and Run
+```
+atomicapp [--dry-run] [-a answers.conf] install|run [--recursive] [--update] [--destination DST_PATH] APP|PATH
+```
+
+Pulls the application and it's dependencies. If the last argument is
+existing path, it looks for `Nulecule` file there instead of pulling anything.
+
+* `--recursive yes|no` Pull whole dependency tree
+* `--update` Overwrite any existing files
+* `--destination DST_PATH` Unpack the application into given directory instead of current directory
+* `APP` Name of the image containing the application (f.e. `vpavlin/wp-app`)
+* `PATH` Path to a directory with installed (i.e. result of `atomicapp install ...`) app
+
+Action `run` performs `install` prior its own tasks are executed if `APP` is given. When `run` is selected, providers' code is invoked and containers are deployed.
+
 ## Submitting a Pull Request
 Before you submit your pull request consider the following guidelines:
 
@@ -54,6 +102,7 @@ Before you submit your pull request consider the following guidelines:
   * Rebase your branch and force push to your GitHub repository (this will update your Pull Request):
 
     ```shell
+    git commit --amend
     git rebase master -i
     git push origin bug/my-fix-branch -f
     ```
