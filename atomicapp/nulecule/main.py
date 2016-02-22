@@ -89,7 +89,7 @@ class NuleculeManager(object):
                 self.app_path = Utils.getNewAppCacheDir(self.image)
 
         logger.debug("NuleculeManager init app_path: %s", self.app_path)
-        logger.debug("NuleculeManager init    image: %s", self.image)
+        logger.debug("NuleculeManager init image: %s", self.image)
 
         # Create the app_path if it doesn't exist yet
         if not os.path.isdir(self.app_path):
