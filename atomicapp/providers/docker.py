@@ -20,14 +20,15 @@
 import os
 import subprocess
 import re
-import logging
+
+from atomicapp.applogging import Logging
 from atomicapp.constants import (DEFAULT_CONTAINER_NAME,
-                                 DEFAULT_NAMESPACE,
-                                 LOGGER_DEFAULT)
+                                 DEFAULT_NAMESPACE,)
 from atomicapp.plugin import Provider, ProviderFailedException
 from atomicapp.utils import Utils
 
-logger = logging.getLogger(LOGGER_DEFAULT)
+# assign the logger instance from applogging.py to use here
+logger = Logging.global_logger(__file__)
 
 
 class DockerProvider(Provider):

@@ -24,18 +24,17 @@ import os
 
 import imp
 
-import logging
+from atomicapp.applogging import Logging
 from utils import Utils
 from constants import (HOST_DIR,
-                       LOGGER_DEFAULT,
                        PROVIDER_CONFIG_KEY)
 
-logger = logging.getLogger(LOGGER_DEFAULT)
+# assign the logger instance from applogging.py to use here
+logger = Logging.global_logger(__file__)
 
 
 class Provider(object):
     key = None
-
     config = None
     path = None
     dryrun = None

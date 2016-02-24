@@ -21,14 +21,15 @@ import anymarkup
 import urlparse
 import logging
 import os
-from atomicapp.constants import (LOGGER_COCKPIT,
-                                 LOGGER_DEFAULT)
+from atomicapp.constants import (LOGGER_COCKPIT)
 from atomicapp.plugin import Provider, ProviderFailedException
 from atomicapp.utils import Utils
 from atomicapp.constants import PROVIDER_API_KEY
+from atomicapp.applogging import Logging
 
 cockpit_logger = logging.getLogger(LOGGER_COCKPIT)
-logger = logging.getLogger(LOGGER_DEFAULT)
+# assign the logger instance from applogging.py to use here
+logger = Logging.global_logger(__file__)
 
 
 class Marathon(Provider):

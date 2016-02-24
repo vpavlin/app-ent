@@ -3,15 +3,17 @@ import subprocess
 import uuid
 import logging
 
+from atomicapp.applogging import Logging
 from atomicapp.constants import (APP_ENT_PATH,
                                  LOGGER_COCKPIT,
-                                 LOGGER_DEFAULT,
                                  MAIN_FILE)
 from atomicapp.utils import Utils
 from atomicapp.nulecule.exceptions import NuleculeException
 
 cockpit_logger = logging.getLogger(LOGGER_COCKPIT)
-logger = logging.getLogger(LOGGER_DEFAULT)
+
+# assign the logger instance from applogging.py to use here
+logger = Logging.global_logger(__file__)
 
 
 class DockerHandler(object):

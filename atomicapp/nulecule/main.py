@@ -8,6 +8,7 @@ import tempfile
 import urlparse
 import urllib
 
+from atomicapp.applogging import Logging
 from atomicapp.constants import (GLOBAL_CONF,
                                  ANSWERS_FILE_SAMPLE_FORMAT,
                                  ANSWERS_FILE,
@@ -15,7 +16,6 @@ from atomicapp.constants import (GLOBAL_CONF,
                                  ANSWERS_RUNTIME_FILE,
                                  DEFAULT_ANSWERS,
                                  LOGGER_COCKPIT,
-                                 LOGGER_DEFAULT,
                                  MAIN_FILE,
                                  PROVIDER_KEY)
 from atomicapp.nulecule.base import Nulecule
@@ -23,7 +23,8 @@ from atomicapp.nulecule.exceptions import NuleculeException
 from atomicapp.utils import Utils
 
 cockpit_logger = logging.getLogger(LOGGER_COCKPIT)
-logger = logging.getLogger(LOGGER_DEFAULT)
+# assign the logger instance from applogging.py to use here
+logger = Logging.global_logger(__file__)
 
 
 class NuleculeManager(object):

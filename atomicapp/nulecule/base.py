@@ -11,7 +11,6 @@ from atomicapp.constants import (APP_ENT_PATH,
                                  EXTERNAL_APP_DIR,
                                  GLOBAL_CONF,
                                  LOGGER_COCKPIT,
-                                 LOGGER_DEFAULT,
                                  MAIN_FILE,
                                  RESOURCE_KEY,
                                  PARAMS_KEY,
@@ -26,11 +25,13 @@ from atomicapp.nulecule.lib import NuleculeBase
 from atomicapp.nulecule.container import DockerHandler
 from atomicapp.nulecule.exceptions import NuleculeException
 from atomicapp.providers.openshift import OpenShiftProvider
-
+from atomicapp.applogging import Logging
 from jsonpointer import resolve_pointer, set_pointer, JsonPointerException
 
 cockpit_logger = logging.getLogger(LOGGER_COCKPIT)
-logger = logging.getLogger(LOGGER_DEFAULT)
+
+# assign the logger instance from applogging.py to use here
+logger = Logging.global_logger(__file__)
 
 
 class Nulecule(NuleculeBase):

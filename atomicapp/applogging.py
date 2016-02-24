@@ -71,8 +71,15 @@ class colorizeOutputFormatter(logging.Formatter):
         return input
 
 
-class Logging:
+class AtomicappLoggingAdapter(logging.LoggerAdapter):
+    """
+    A class to pass contextual information to logs.
+    """
+    def process(self, msg, kwargs):
+        return('{} : {}'.format(self.extra['atomicapp_extra'], msg), kwargs)
 
+
+class Logging:
     @staticmethod
     def setup_logging(verbose=None, quiet=None, logtype=None):
         """
@@ -101,20 +108,20 @@ class Logging:
 
         # Get the loggers and clear out the handlers (allows this function
         # to be ran more than once)
-        logger = logging.getLogger(LOGGER_DEFAULT)
-        logger.handlers = []
+        logger_raw = logging.getLogger(LOGGER_DEFAULT)
+        logger_raw.handlers = []
         cockpit_logger = logging.getLogger(LOGGER_COCKPIT)
         cockpit_logger.handlers = []
 
         if logtype == 'none':
             # blank out both loggers
-            logger.addHandler(logging.NullHandler())
+            logger_raw.addHandler(logging.NullHandler())
             cockpit_logger.addHandler(logging.NullHandler())
             return
 
         if logtype == 'cockpit':
             # blank out normal log messages
-            logger.addHandler(logging.NullHandler())
+            logger_raw.addHandler(logging.NullHandler())
 
             # configure cockpit logger
             handler = logging.StreamHandler(stream=sys.stdout)
@@ -130,10 +137,10 @@ class Logging:
 
             # configure logger for basic no color printing to stdout
             handler = logging.StreamHandler(stream=sys.stdout)
-            formatter = logging.Formatter('%(asctime)s - [%(levelname)s] - %(filename)s - %(message)s')
+            formatter = logging.Formatter('%(asctime)s - [%(levelname)s] - %(message)s')
             handler.setFormatter(formatter)
-            logger.addHandler(handler)
-            logger.setLevel(logging_level)
+            logger_raw.addHandler(handler)
+            logger_raw.setLevel(logging_level)
             return
 
         if logtype == 'color':
@@ -142,11 +149,26 @@ class Logging:
 
             # configure logger for color printing to stdout
             handler = logging.StreamHandler(stream=sys.stdout)
-            formatter = colorizeOutputFormatter('%(asctime)s - [%(levelname)s] - %(filename)s - %(message)s')
+            formatter = colorizeOutputFormatter('%(asctime)s - [%(levelname)s] - %(message)s')
             handler.setFormatter(formatter)
-            logger.addHandler(handler)
-            logger.setLevel(logging_level)
+            logger_raw.addHandler(handler)
+            logger_raw.setLevel(logging_level)
             return
 
         # If we made it here then there is an error
         raise Exception("Invalid logging output type: {}".format(logtype))
+
+    @staticmethod
+    def global_logger(filename):
+        """
+        This function returns a logging instance which will output logging event information
+        along with what the LoggerAdapter tells it to output
+        :param filename: path of the file calling this function
+        :return the function returns the logger instance which is being used by all the files
+        """
+
+        # creating a logging instance
+        logger_raw = logging.getLogger(LOGGER_DEFAULT)
+        # the logging adapter handles the filename received from the file importing this
+        logger = AtomicappLoggingAdapter(logger_raw, {'atomicapp_extra': '/'.join(filename.split('/')[-2:])})
+        return logger

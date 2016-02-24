@@ -29,18 +29,18 @@ import websocket
 
 from atomicapp.utils import Utils
 from atomicapp.plugin import Provider, ProviderFailedException
+from atomicapp.applogging import Logging
 from atomicapp.constants import (ACCESS_TOKEN_KEY,
                                  ANSWERS_FILE,
                                  DEFAULT_NAMESPACE,
-                                 LOGGER_DEFAULT,
                                  NAMESPACE_KEY,
                                  PROVIDER_API_KEY,
                                  PROVIDER_TLS_VERIFY_KEY,
                                  PROVIDER_CA_KEY)
 from requests.exceptions import SSLError
-import logging
-logger = logging.getLogger(LOGGER_DEFAULT)
 
+# assign the logger instance from applogging.py to use here
+logger = Logging.global_logger(__file__)
 # If running in an openshift POD via `oc new-app`, the ca file is here
 OPENSHIFT_POD_CA_FILE = "/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 

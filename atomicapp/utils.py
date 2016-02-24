@@ -31,19 +31,21 @@ from distutils.spawn import find_executable
 
 import logging
 
+from atomicapp.applogging import Logging
+
 from subprocess import Popen, PIPE
 from constants import (APP_ENT_PATH,
                        CACHE_DIR,
                        EXTERNAL_APP_DIR,
                        HOST_DIR,
                        LOGGER_COCKPIT,
-                       LOGGER_DEFAULT,
                        WORKDIR)
 
 __all__ = ('Utils')
 
 cockpit_logger = logging.getLogger(LOGGER_COCKPIT)
-logger = logging.getLogger(LOGGER_DEFAULT)
+# assign the logger instance from applogging.py to use here
+logger = Logging.global_logger(__file__)
 
 
 class AtomicAppUtilsException(Exception):
