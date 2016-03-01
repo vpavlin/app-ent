@@ -21,7 +21,6 @@ import os
 import sys
 
 import argparse
-import logging
 from lockfile import LockFile
 from lockfile import AlreadyLocked
 
@@ -34,13 +33,13 @@ from atomicapp.constants import (__ATOMICAPPVERSION__,
                                  CACHE_DIR,
                                  HOST_DIR,
                                  LOCK_FILE,
-                                 LOGGER_DEFAULT,
                                  PROVIDERS)
 from atomicapp.nulecule import NuleculeManager
 from atomicapp.nulecule.exceptions import NuleculeException
 from atomicapp.utils import Utils
 
-logger = logging.getLogger(LOGGER_DEFAULT)
+# assign the logger instance from applogging.py to use here
+logger = Logging.global_logger(__file__)
 
 
 def print_app_location(app_path):
