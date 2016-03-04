@@ -103,7 +103,7 @@ class DockerProvider(Provider):
             if self.dryrun:
                 logger.info("DRY-RUN: %s", " ".join(cmd))
             else:
-                subprocess.check_call(cmd)
+                Utils.run_cmd(cmd)
 
     def stop(self):
         logger.info("Undeploying to provider: Docker")
@@ -140,4 +140,4 @@ class DockerProvider(Provider):
                 if self.dryrun:
                     logger.info("DRY-RUN: STOPPING CONTAINER %s", " ".join(cmd))
                 else:
-                    subprocess.check_call(cmd)
+                    Utils.run_cmd(cmd)
