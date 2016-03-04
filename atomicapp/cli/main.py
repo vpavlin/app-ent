@@ -47,7 +47,7 @@ def print_app_location(app_path):
     if app_path.startswith(HOST_DIR):
         app_path = app_path[len(HOST_DIR):]
     print("\nYour application resides in %s" % app_path)
-    print("Please use this directory for managing your application\n")
+    print("Please use this directory for managing your application")
 
 
 def cli_genanswers(args):
