@@ -448,7 +448,7 @@ class CLI():
             if hasattr(args, item) and getattr(args, item) is not None:
                 args.cli_answers[item] = getattr(args, item)
 
-        lock = LockFile(os.path.join(Utils.getRoot(), LOCK_FILE))
+        lock = LockFile(Utils.getLockFile())
         try:
             lock.acquire(timeout=-1)
             args.func(args)
