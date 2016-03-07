@@ -33,7 +33,6 @@ from atomicapp.constants import (__ATOMICAPPVERSION__,
                                  APP_ENT_PATH,
                                  CACHE_DIR,
                                  HOST_DIR,
-                                 LOCK_FILE,
                                  LOGGER_DEFAULT,
                                  PROVIDERS)
 from atomicapp.nulecule import NuleculeManager
