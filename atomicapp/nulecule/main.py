@@ -228,6 +228,10 @@ class NuleculeManager(object):
         if not self.answers_file:
             self._process_answers()
 
+        # Give preference to the 'provider' which is specified via CLI
+        if cli_provider:
+            self.nulecule.config[GLOBAL_CONF]['provider'] = cli_provider
+
         self.nulecule.load_config(config=self.nulecule.config, ask=ask)
         self.nulecule.render(cli_provider, dryrun)
         self.nulecule.run(cli_provider, dryrun)
