@@ -32,29 +32,12 @@ Some commands for `atomicapp` on an atomic host are a bit different.
 
 However. Regardless of the `atomic run` command, a `--mode` can be passed to change the functionality of the command. 
 
-`atomicapp fetch projectatomic/helloapache`
-
-vs
-
-`atomic run projectatomic/helloapache --mode fetch`
-
-`atomicapp run projectatomic/helloapache`
-
-vs
-
-`atomic run projectatomic/helloapache`
-
-`atomicapp stop ./myappdir`
-
-vs
-
-`atomic stop projectatomic/helloapache ./myappdir`
-
-`atomicapp genanswers ./myappdir`
-
-vs
-
-`atomic run projectatomic/helloapache ./myappdir --mode genanswers`
+| Atomic App | Atomic CLI
+|-----------|--------|
+| `atomicapp fetch projectatomic/helloapache` | `atomic run projectatomic/helloapache --mode fetch`
+| `atomicapp run projectatomic/helloapache` | `atomic run projectatomic/helloapache`
+| `atomicapp stop ./myappdir` | `atomic stop projectatomic/helloapache ./myappdir`
+| `atomicapp genanswers ./myappdir` | `atomic run projectatomic/helloapache ./myappdir --mode genanswers`
 
 ## Building your first Atomic App
 

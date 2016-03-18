@@ -1,5 +1,6 @@
 # Atomic App
 
+
 ![](docs/images/logo.png "Project Atomic")
 
 Atomic App is a reference implementation of the [Nulecule](https://github.com/projectatomic/nulecule) specification. Packaged Atomic App containers are "Nuleculized" and each component of the package is a "Nulecule".
