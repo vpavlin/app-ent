@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
- Copyright 2015 Red Hat, Inc.
+ Copyright 2014-2016 Red Hat, Inc.
 
  This file is part of Atomic App.
 
