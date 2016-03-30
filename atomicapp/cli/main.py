@@ -52,9 +52,10 @@ def print_app_location(app_path):
 
 def cli_genanswers(args):
     argdict = args.__dict__
+    location = argdict['answers']
     nm = NuleculeManager(app_spec=argdict['app_spec'],
                          destination='none')
-    nm.genanswers(**argdict)
+    nm.genanswers(location=location, **argdict)
     Utils.rm_dir(nm.app_path)  # clean up files
     sys.exit(0)
 
@@ -350,6 +351,11 @@ class CLI():
         # === "genanswers" SUBPARSER ===
         gena_subparser = toplevel_subparsers.add_parser(
             "genanswers", parents=[globals_parser])
+        gena_subparser.add_argument(
+            "-a",
+            "--answers",
+            dest="answers",
+            help="Path to %s" % ANSWERS_FILE)
         gena_subparser.add_argument(
             "app_spec",
             nargs='?',

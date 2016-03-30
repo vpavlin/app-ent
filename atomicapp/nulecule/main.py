@@ -131,7 +131,7 @@ class NuleculeManager(object):
             return Nulecule.load_from_path(
                 self.app_path, dryrun=dryrun, config=config)
 
-    def genanswers(self, dryrun=False, answers_format=None, **kwargs):
+    def genanswers(self, dryrun=False, answers_format=None, location=None, **kwargs):
         """
         Renders artifacts and then generates an answer file. Finally
         copies answer file to the current working directory.
@@ -147,10 +147,19 @@ class NuleculeManager(object):
         self.answers_format = answers_format or ANSWERS_FILE_SAMPLE_FORMAT
 
         # Check to make sure an answers.conf file doesn't exist already
-        answers_file = os.path.join(os.getcwd(), ANSWERS_FILE)
+        if location is None:
+            answers_file = os.path.join(os.getcwd(), ANSWERS_FILE)
+        else:
+            answers_file = os.path.join(location, ANSWERS_FILE)
+
         if os.path.exists(answers_file):
             raise NuleculeException(
-                "Can't generate answers.conf over existing file")
+                "Can't generate %s over existing file" % answers_file)
+
+        answers_folder = os.path.dirname(answers_file)
+        if not os.path.isdir(answers_folder):
+            raise NuleculeException(
+                "Directory %s does not exist." % answers_folder)
 
         # Call unpack to get the app code
         self.nulecule = self.unpack(update=False, dryrun=dryrun, config=self.answers)
