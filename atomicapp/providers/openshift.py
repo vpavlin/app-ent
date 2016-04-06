@@ -25,7 +25,6 @@ import tarfile
 import time
 from urlparse import urljoin
 from urllib import urlencode
-from collections import OrderedDict
 import websocket
 
 from atomicapp.utils import Utils
@@ -40,6 +39,7 @@ from atomicapp.constants import (PROVIDER_AUTH_KEY,
                                  PROVIDER_CA_KEY,
                                  OPENSHIFT_POD_CA_FILE)
 from atomicapp.providers.lib.kubeconfig import KubeConfig
+from atomicapp.applibs.appcollections import OrderedDefaultDict
 from requests.exceptions import SSLError
 import logging
 logger = logging.getLogger(LOGGER_DEFAULT)
@@ -332,7 +332,7 @@ class OpenShiftProvider(Provider):
 
     def init(self):
         # Parsed artifacts. Key is kind of artifacts. Value is list of artifacts.
-        self.openshift_artifacts = OrderedDict()
+        self.openshift_artifacts = OrderedDefaultDict(list)
 
         self._set_config_values()
 
@@ -504,14 +504,10 @@ class OpenShiftProvider(Provider):
             # add all processed object to artifacts dict
             for obj in processed_objects:
                 obj_kind = obj["kind"].lower()
-                if obj_kind not in self.openshift_artifacts.keys():
-                    self.openshift_artifacts[obj_kind] = []
                 self.openshift_artifacts[obj_kind].append(obj)
             return
 
         # add parsed artifact to dict
-        if kind not in self.openshift_artifacts.keys():
-            self.openshift_artifacts[kind] = []
         self.openshift_artifacts[kind].append(data)
 
     def _process_template(self, template):
