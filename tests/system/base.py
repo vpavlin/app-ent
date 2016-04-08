@@ -1,4 +1,5 @@
 import os
+import re
 import anymarkup
 import datetime
 import unittest
@@ -48,7 +49,91 @@ class BaseProviderTestSuite(unittest.TestCase):
 
 
 class DockerProviderTestSuite(BaseProviderTestSuite):
-    pass
+    """
+    Base test suite for Docker.
+    """
+
+    def tearDown(self):
+        _containers = self._get_containers(all=True)
+
+        for container in _containers:
+            if container not in self._containers:
+                cmd = ['docker', 'rm', '-f', container]
+                print cmd
+                subprocess.check_output(cmd)
+
+    def deploy(self, app_spec, answers):
+        """
+        Deploy app to Docker
+
+        Args:
+            app_spec (str): image name or path to application
+            answers (dict): Answers data
+
+        Returns:
+            Path of the deployed dir.
+        """
+        destination = tempfile.mkdtemp()
+        answers_path = self.get_tmp_answers_file(answers)
+        cmd = ['atomicapp', 'run', '--answers=%s' % answers_path,
+               '--provider=docker',
+               '--destination=%s' % destination, app_spec]
+        subprocess.check_output(cmd)
+        return destination
+
+    def undeploy(self, workdir):
+        """
+        Undeploy app from Docker.
+
+        Args:
+            workdir (str): Path to deployed application dir
+        """
+        cmd = ['atomicapp', 'stop', workdir]
+        subprocess.check_output(cmd)
+
+    def assertContainerRunning(self, name):
+        containers = self._get_containers()
+        for _id, container in containers.items():
+            if container['names'] == name:
+                return True
+        raise AssertionError('Container: %s not running.' % name)
+
+    def assertContainerNotRunning(self, name):
+        containers = self._get_containers()
+        for _id, container in containers.items():
+            if container['name'] == name:
+                raise AssertionError('Container: %s is running' % name)
+        return True
+
+    def get_initial_state(self):
+        self._containers = self._get_containers(all=True)
+
+    def _get_containers(self, all=False):
+        cmd = ['docker', 'ps']
+        if all:
+            cmd.append('-a')
+        output = subprocess.check_output(cmd)
+        _containers = OrderedDict()
+
+        for line in output.splitlines()[1:]:
+            container = self._get_container(line)
+            _containers[container['id']] = container
+        return _containers
+
+    def _get_container(self, line):
+        words = re.split(' {2,}', line)
+        if len(words) == 6:
+            words = words[:-1] + [''] + words[-1:]
+        container_id, image, command, created, status, ports, names = words
+        return {
+            'id': container_id,
+            'image': image,
+            'command': command,
+            'created': created,
+            'status': status,
+            'ports': ports,
+            'names': names
+        }
 
 
 class KubernetesProviderTestSuite(BaseProviderTestSuite):
