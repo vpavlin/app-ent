@@ -96,7 +96,8 @@ def cli_run(args):
 
 def cli_stop(args):
     argdict = args.__dict__
-    nm = NuleculeManager(app_spec=argdict['app_spec'])
+    nm = NuleculeManager(app_spec=argdict['app_spec'],
+                         action=argdict['action'])
     nm.stop(**argdict)
     sys.exit(0)
 
