@@ -375,7 +375,12 @@ class CLI():
 
     def run(self):
         cmdline = sys.argv[1:]  # Grab args from cmdline
+<<<<<<< HEAD
 
+=======
+        if len(cmdline) == 0:   # Show help if no args are given by the user
+            cmdline = ['-h']
+>>>>>>> c69cec8... add help when argument is given
         # Initial setup of logging (to allow for a few early debug statements)
         Logging.setup_logging(verbose=True, quiet=False)
 
