@@ -38,6 +38,7 @@ from atomicapp.constants import (__ATOMICAPPVERSION__,
                                  PROVIDERS)
 from atomicapp.nulecule import NuleculeManager
 from atomicapp.nulecule.exceptions import NuleculeException, DockerException
+from atomicapp.plugin import ProviderFailedException
 from atomicapp.utils import Utils
 
 logger = logging.getLogger(LOGGER_DEFAULT)
@@ -120,6 +121,9 @@ def cli_func_exec(cli_func, cli_func_args):
         logger.error(e)
         sys.exit(1)
     except NuleculeException as e:
+        logger.error(e)
+        sys.exit(1)
+    except ProviderFailedException as e:
         logger.error(e)
         sys.exit(1)
     except Exception as e:
