@@ -17,3 +17,8 @@ If you want to do the same thing for Fedora you would:
 ```
 docker build -t fedora-atomicapp-git -f ./Dockerfiles.git/Dockerfile.fedora .
 ```
+
+Or Alpine:
+```
+docker build -t alpine-atomicapp-git -f ./Dockerfiles.git/Dockerfile.alpine .
+```

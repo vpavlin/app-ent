@@ -1,4 +1,4 @@
-FROM centos:7
+FROM alpine
 
 MAINTAINER Red Hat, Inc. <container-tools@redhat.com>
 
@@ -12,27 +12,18 @@ LABEL io.projectatomic.nulecule.atomicappversion=${ATOMICAPPVERSION} \
 
 WORKDIR /opt/atomicapp
 
-# Add the requirements file into the container
 ADD requirements.txt ./
 
-# Install needed requirements
-RUN yum install -y epel-release && \
-    yum install -y --setopt=tsflags=nodocs docker && \
-    yum install -y --setopt=tsflags=nodocs $(sed s/^/python-/ requirements.txt) && \
-    yum clean all
+RUN apk add --update \
+    python \
+    py-pip \
+    docker && \
+    pip install -r requirements.txt && \
+    apk del py-pip && \
+    rm /var/cache/apk/*
 
 WORKDIR /atomicapp
-
-# If a volume doesn't get mounted over /atomicapp (like when running in 
-# an openshift pod) then open up permissions so files can be copied into
-# the directory by non-root.
 RUN chmod 777 /atomicapp
-
 ENV PYTHONPATH  /opt/atomicapp/
-
-# the entrypoint
 ENTRYPOINT ["/usr/bin/python", "/opt/atomicapp/atomicapp/cli/main.py"]
-
-# Add all of Atomic App's files to the container image
-# NOTE: Do this last so rebuilding after development is fast
 ADD atomicapp/ /opt/atomicapp/atomicapp/
