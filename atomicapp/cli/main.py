@@ -33,7 +33,6 @@ from atomicapp.constants import (__ATOMICAPPVERSION__,
                                  APP_ENT_PATH,
                                  CACHE_DIR,
                                  HOST_DIR,
-                                 LOCK_FILE,
                                  LOGGER_DEFAULT,
                                  PROVIDERS)
 from atomicapp.nulecule import NuleculeManager
@@ -474,7 +473,7 @@ class CLI():
             if hasattr(args, item) and getattr(args, item) is not None:
                 args.cli_answers[item] = getattr(args, item)
 
-        lock = LockFile(os.path.join(Utils.getRoot(), LOCK_FILE))
+        lock = LockFile(Utils.getLockFile())
         try:
             if args.action != 'init':
                 lock.acquire(timeout=-1)

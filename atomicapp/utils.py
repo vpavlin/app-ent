@@ -28,6 +28,8 @@ import anymarkup
 import uuid
 import requests
 from distutils.spawn import find_executable
+import constants
+import errno
 
 import logging
 
@@ -353,6 +355,31 @@ class Utils(object):
             return HOST_DIR
         else:
             return "/"
+
+    @staticmethod
+    def getLockFolder():
+        if os.access(constants.LOCK_FOLDER, os.W_OK):
+            return constants.LOCK_FOLDER
+        else:
+            # remove leading slash and then join ( see os.path.join() for details )
+            return os.path.join(constants.CURRENT_TEMP_FOLDER,
+                                str.lstrip(constants.LOCK_FOLDER, "/"))
+
+    @staticmethod
+    def getLockFile():
+        lockfolder = Utils.getLockFolder()
+        lockfile = os.path.join(lockfolder, constants.LOCK_FILE)
+        if lockfile.startswith(constants.CURRENT_TEMP_FOLDER):  # temporary path
+            # ensure that lock folder exists
+            try:
+                os.makedirs(lockfolder)
+            except OSError as exc:
+                if exc.errno == errno.EEXIST and os.path.isdir(lockfolder):
+                    pass
+
+            return lockfile
+        else:
+            return os.path.join(Utils.getRoot(), lockfile)
 
     # generates a unique 12 character UUID
     @staticmethod
