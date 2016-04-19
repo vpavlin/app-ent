@@ -5,8 +5,8 @@ MAINTAINER Red Hat, Inc. <container-tools@redhat.com>
 ENV ATOMICAPPVERSION="0.5.0"
 
 LABEL io.projectatomic.nulecule.atomicappversion=${ATOMICAPPVERSION} \
-      RUN="docker run -it --rm \${OPT1} --privileged -v \${PWD}:/atomicapp -v /run:/run -v /:/host --net=host --name \${NAME} -e USER -e SUDO_USER -e NAME=\${NAME} -e IMAGE=\${IMAGE} \${IMAGE} \${OPT2} run \${OPT3}" \
-      STOP="docker run -it --rm \${OPT1} --privileged -v \${PWD}:/atomicapp -v /run:/run -v /:/host --net=host --name \${NAME} -e USER -e SUDO_USER -e NAME=\${NAME} -e IMAGE=\${IMAGE} \${IMAGE} \${OPT2} stop \${OPT3}"
+      RUN="docker run -it --rm \${OPT1} --privileged -v \${PWD}:/atomicapp -v /var/run:/var/run -v /var/lock:/var/lock -v /:/host --net=host --name \${NAME} -e NAME=\${NAME} -e IMAGE=\${IMAGE} \${IMAGE} -v \${OPT2} run \${OPT3} \${IMAGE}" \
+      STOP="docker run -it --rm \${OPT1} --privileged -v \${PWD}:/atomicapp -v /var/run:/var/run -v /var/lock:/var/lock -v /:/host --net=host --name \${NAME} -e NAME=\${NAME} -e IMAGE=\${IMAGE} \${IMAGE} -v \${OPT2} stop \${OPT3}" \
 
 WORKDIR /opt/atomicapp
 
@@ -32,10 +32,10 @@ WORKDIR /atomicapp
 # the directory by non-root.
 RUN chmod 777 /atomicapp
 
-# If a volume doesn't get mounted over /run (like when running in an
+# If a volume doesn't get mounted over /var/lock (like when running in an
 # openshift pod) then open up permissions so the lock file can be
 # created by non-root.
-RUN chmod 777 /run/lock
+RUN chmod 777 /var/lock
 
 ENV PYTHONPATH  /opt/atomicapp/
 
