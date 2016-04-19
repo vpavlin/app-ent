@@ -16,8 +16,9 @@ WORKDIR /opt/atomicapp
 ADD requirements.txt ./
 
 # Install needed requirements
-RUN dnf install -y --setopt=tsflags=nodocs docker && \
-    dnf install -y --setopt=tsflags=nodocs $(sed s/^/python-/ requirements.txt) && \
+RUN dnf install -y --setopt=tsflags=nodocs docker python-pip && \
+    pip install -r requirements.txt && \
+    dnf remove -y python-pip && \
     dnf clean all
 
 WORKDIR /atomicapp
