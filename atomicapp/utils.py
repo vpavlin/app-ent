@@ -432,7 +432,7 @@ class Utils(object):
         return home
 
     @staticmethod
-    def make_rest_request(method, url, verify=True, data=None):
+    def make_rest_request(method, url, verify=True, data=None, cert=None):
         """
         Make HTTP request to url
 
@@ -444,6 +444,10 @@ class Utils(object):
                                   of trusted CAs
             data (dict/list): object to be serialised to json and send as http
                               data (when method=post/put/delete)
+            cert (tuple/string): Path to local cert as client side certificate,
+                                 as a single file (containing the certificate
+                                 and the private key) or as a tuple of both
+                                 file's path
 
         Returns:
             tuple (status_code, return_data): status_code - http status code
@@ -459,16 +463,17 @@ class Utils(object):
 
         try:
             if method.lower() == "get":
-                res = requests.get(url, verify=verify)
+                res = requests.get(url, verify=verify, cert=cert)
             elif method.lower() == "post":
-                res = requests.post(url, json=data, verify=verify)
+                res = requests.post(url, json=data, verify=verify, cert=cert)
             elif method.lower() == "put":
-                res = requests.put(url, json=data, verify=verify)
+                res = requests.put(url, json=data, verify=verify, cert=cert)
             elif method.lower() == "delete":
-                res = requests.delete(url, json=data, verify=verify)
+                res = requests.delete(url, json=data, verify=verify, cert=cert)
             elif method.lower() == "patch":
                 headers = {"Content-Type": "application/json-patch+json"}
-                res = requests.patch(url, json=data, verify=verify, headers=headers)
+                res = requests.patch(url, json=data, verify=verify,
+                                     headers=headers, cert=cert)
 
             status_code = res.status_code
             return_data = res.json()

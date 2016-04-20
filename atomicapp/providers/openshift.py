@@ -48,11 +48,12 @@ logger = logging.getLogger(LOGGER_DEFAULT)
 class OpenshiftClient(object):
 
     def __init__(self, providerapi, access_token,
-                 provider_tls_verify, provider_ca):
+                 provider_tls_verify, provider_ca, certs):
         self.providerapi = providerapi
         self.access_token = access_token
         self.provider_tls_verify = provider_tls_verify
         self.provider_ca = provider_ca
+        self.certs = certs
 
         # construct full urls for api endpoints
         self.kubernetes_api = urljoin(self.providerapi, "api/v1/")
@@ -78,7 +79,8 @@ class OpenshiftClient(object):
             (status_code, return_data) = \
                 Utils.make_rest_request("get",
                                         self.openshift_api,
-                                        verify=self._requests_tls_verify())
+                                        verify=self._requests_tls_verify(),
+                                        cert=self.certs)
         except SSLError as e:
             if self.provider_tls_verify:
                 msg = "SSL/TLS ERROR: invalid certificate. " \
@@ -98,7 +100,8 @@ class OpenshiftClient(object):
         (status_code, return_data) = \
             Utils.make_rest_request("get",
                                     self.openshift_api,
-                                    verify=self._requests_tls_verify())
+                                    verify=self._requests_tls_verify(),
+                                    cert=self.certs)
         if status_code == 200:
             oapi_resources = return_data["resources"]
         else:
@@ -119,7 +122,8 @@ class OpenshiftClient(object):
         (status_code, return_data) = \
             Utils.make_rest_request("get",
                                     self.kubernetes_api,
-                                    verify=self._requests_tls_verify())
+                                    verify=self._requests_tls_verify(),
+                                    cert=self.certs)
         if status_code == 200:
             kapi_resources = return_data["resources"]
         else:
@@ -137,7 +141,8 @@ class OpenshiftClient(object):
             Utils.make_rest_request("post",
                                     url,
                                     verify=self._requests_tls_verify(),
-                                    data=artifact)
+                                    data=artifact,
+                                    cert=self.certs)
         if status_code == 201:
             logger.info("Object %s successfully deployed.",
                         artifact['metadata']['name'])
@@ -160,7 +165,8 @@ class OpenshiftClient(object):
         (status_code, return_data) = \
             Utils.make_rest_request("delete",
                                     url,
-                                    verify=self._requests_tls_verify())
+                                    verify=self._requests_tls_verify(),
+                                    cert=self.certs)
         if status_code == 200:
             logger.info("Successfully deleted.")
         else:
@@ -184,7 +190,8 @@ class OpenshiftClient(object):
             Utils.make_rest_request("patch",
                                     url,
                                     data=patch,
-                                    verify=self._requests_tls_verify())
+                                    verify=self._requests_tls_verify(),
+                                    cert=self.certs)
         if status_code == 200:
             logger.info("Successfully scaled to %s replicas", replicas)
         else:
@@ -197,7 +204,8 @@ class OpenshiftClient(object):
             Utils.make_rest_request("post",
                                     url,
                                     verify=self._requests_tls_verify(),
-                                    data=template)
+                                    data=template,
+                                    cert=self.certs)
         if status_code == 201:
             logger.info("template processed %s", template['metadata']['name'])
             logger.debug("processed template %s", return_data)
@@ -304,7 +312,10 @@ class OpenshiftClient(object):
             'namespaces/{namespace}/pods/{pod}?'
             'access_token={access_token}'.format(**args))
         (status_code, return_data) = \
-            Utils.make_rest_request("get", url, verify=self._requests_tls_verify())
+            Utils.make_rest_request("get",
+                                    url,
+                                    verify=self._requests_tls_verify(),
+                                    cert=self.certs)
 
         if status_code != 200:
             raise ProviderFailedException(
@@ -329,6 +340,8 @@ class OpenShiftProvider(Provider):
     provider_tls_verify = True
     # path to file or dir with CA certificates
     provider_ca = None
+    # client certificate and key for authentication
+    certs = None
 
     def init(self):
         # Parsed artifacts. Key is kind of artifacts. Value is list of artifacts.
@@ -339,7 +352,8 @@ class OpenShiftProvider(Provider):
         self.oc = OpenshiftClient(self.providerapi,
                                   self.access_token,
                                   self.provider_tls_verify,
-                                  self.provider_ca)
+                                  self.provider_ca,
+                                  self.certs)
         self.openshift_api = self.oc.openshift_api
         self.kubernetes_api = self.oc.kubernetes_api
 
@@ -430,7 +444,10 @@ class OpenShiftProvider(Provider):
                                     "replicationcontroller",
                                     params=params)
                 (status_code, return_data) = \
-                    Utils.make_rest_request("get", url, verify=self.oc._requests_tls_verify())
+                    Utils.make_rest_request("get",
+                                            url,
+                                            verify=self.oc._requests_tls_verify(),
+                                            cert=self.certs)
                 if status_code != 200:
                     raise ProviderFailedException("Cannot get Replication"
                                                   "Controllers for Deployment"
@@ -591,10 +608,11 @@ class OpenShiftProvider(Provider):
         if name:
             url = urljoin(url, name)
 
-        if params:
-            params["access_token"] = self.access_token
-        else:
-            params = {"access_token": self.access_token}
+        if not params:
+            params = {}
+
+        if self.access_token:
+                params["access_token"] = self.access_token
 
         url = urljoin(url, "?%s" % urlencode(params))
         logger.debug("url: %s", url)
@@ -675,15 +693,16 @@ class OpenShiftProvider(Provider):
 
         # set config values
         self.providerapi = result[PROVIDER_API_KEY]
-        self.access_token = result[PROVIDER_AUTH_KEY]
+        if ":" in result[PROVIDER_AUTH_KEY]:
+            self.access_token = None
+            self.certs = tuple(result[PROVIDER_AUTH_KEY].split(":"))
+        else:
+            self.access_token = result[PROVIDER_AUTH_KEY]
+            self.certs = None
+
         self.namespace = result[NAMESPACE_KEY]
         self.provider_tls_verify = result[PROVIDER_TLS_VERIFY_KEY]
-        if result[PROVIDER_CA_KEY]:
-            # if we are in container translate path to path on host
-            self.provider_ca = os.path.join(Utils.getRoot(),
-                                            result[PROVIDER_CA_KEY].lstrip('/'))
-        else:
-            self.provider_ca = None
+        self.provider_ca = result[PROVIDER_CA_KEY]
 
     def extract(self, image, src, dest, update=True):
         """
