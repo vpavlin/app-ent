@@ -380,6 +380,21 @@ class Utils(object):
         distutils.dir_util.remove_tree(directory)
 
     @staticmethod
+    def rm_files(*files):
+        """
+        Remove the files whose paths are provided in 'files'
+
+        Args:
+            files (list/tuple): each item in iterable is a path to file
+                                as string
+
+        Returns: None
+        """
+        for file in files:
+            if os.path.exists(file):
+                os.remove(file)
+
+    @staticmethod
     def getUserName():
         """
         Finds the username of the user running the application. Uses the

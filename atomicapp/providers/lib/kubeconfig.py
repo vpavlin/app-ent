@@ -10,6 +10,7 @@ from atomicapp.constants import (PROVIDER_AUTH_KEY,
                                  PROVIDER_TLS_VERIFY_KEY,
                                  PROVIDER_CA_KEY)
 import logging
+import atexit
 from atomicapp.utils import Utils
 logger = logging.getLogger(LOGGER_DEFAULT)
 
@@ -110,10 +111,12 @@ class KubeConfig(object):
         namespace = context["context"].get("namespace")
         tls_verify = not cluster["cluster"].get("insecure-skip-tls-verify")
 
+        temporary_files = []
         if tls_verify:
             ca_data = cluster["cluster"].get("certificate-authority-data")
             if ca_data:
                 ca = Utils.getTmpFile(b64decode(ca_data))
+                temporary_files.append(ca)
             else:
                 if "certificate-authority" in cluster["cluster"]:
                     # if we are in container translate path to path on host
@@ -136,6 +139,7 @@ class KubeConfig(object):
 
             if cert_data:
                 cert = Utils.getTmpFile(b64decode(cert_data))
+                temporary_files.append(cert)
             else:
                 if "client-certificate" in user["user"]:
                     cert = os.path.join(Utils.getRoot(),
@@ -143,6 +147,7 @@ class KubeConfig(object):
 
             if key_data:
                 key = Utils.getTmpFile(b64decode(key_data))
+                temporary_files.append(key)
             else:
                 if "client-key" in user["user"]:
                     key = os.path.join(Utils.getRoot(),
@@ -150,6 +155,7 @@ class KubeConfig(object):
 
             auth = "{}:{}".format(cert, key)
 
+        atexit.register(Utils.rm_files, *temporary_files)
         return {PROVIDER_API_KEY: url,
                 PROVIDER_AUTH_KEY: auth,
                 NAMESPACE_KEY: namespace,
