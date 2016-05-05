@@ -205,7 +205,7 @@ class Nulecule(NuleculeBase):
             component.run(provider_key, dryrun)
             cockpit_logger.info("Component %s installed successfully" % provider_key)
 
-    def stop(self, provider_key=None, dryrun=False):
+    def stop(self, provider_key=None, dryrun=False, ignore_errors=False):
         """
         Stop the Nulecule application.
 
@@ -213,6 +213,7 @@ class Nulecule(NuleculeBase):
             provider_key (str): Provider to use for running Nulecule
                                 application
             dryrun (bool): Do not make changes to host when True
+            ignore_errors (bool): Ignore errors, if any, when True
 
         Returns:
             None
@@ -220,7 +221,7 @@ class Nulecule(NuleculeBase):
         provider_key, provider = self.get_provider(provider_key, dryrun)
         # stop the Nulecule application
         for component in self.components:
-            component.stop(provider_key, dryrun)
+            component.stop(provider_key, dryrun, ignore_errors)
 
     def load_config(self, config=None, ask=False, skip_asking=False):
         """
@@ -339,7 +340,7 @@ class NuleculeComponent(NuleculeBase):
         provider.init()
         provider.run()
 
-    def stop(self, provider_key=None, dryrun=False):
+    def stop(self, provider_key=None, dryrun=False, ignore_errors=False):
         """
         Stop the Nulecule component with the specified provider.
         """
@@ -349,6 +350,7 @@ class NuleculeComponent(NuleculeBase):
         provider_key, provider = self.get_provider(provider_key, dryrun)
         provider.artifacts = self.rendered_artifacts.get(provider_key, [])
         provider.init()
+        provider.ignore_errors = ignore_errors
         provider.stop()
 
     def load_config(self, config=None, ask=False, skip_asking=False):

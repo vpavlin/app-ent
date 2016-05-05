@@ -142,4 +142,8 @@ class DockerProvider(Provider):
                 if self.dryrun:
                     logger.info("DRY-RUN: STOPPING CONTAINER %s", " ".join(cmd))
                 else:
-                    subprocess.check_call(cmd)
+                    try:
+                        subprocess.check_call(cmd)
+                    except Exception as e:
+                        if not self.ignore_errors:
+                            raise e

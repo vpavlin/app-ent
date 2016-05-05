@@ -319,7 +319,7 @@ class NuleculeManager(object):
 
         self.nulecule.load_config(config=self.nulecule.config, ask=ask)
         self.nulecule.render(cli_provider, dryrun)
-        self.nulecule.run(cli_provider, dryrun)
+
         runtime_answers = self._get_runtime_answers(
             self.nulecule.config, cli_provider)
         self._write_answers(
@@ -329,12 +329,22 @@ class NuleculeManager(object):
             self._write_answers(answers_output, runtime_answers,
                                 self.answers_format)
 
-    def stop(self, cli_provider, **kwargs):
+        try:
+            self.nulecule.run(cli_provider, dryrun)
+        except Exception as e:
+            logger.error('Application run error: %s' % e)
+            logger.debug('Nulecule run error: %s' % e, exc_info=True)
+            logger.info('Rolling back changes')
+            self.stop(cli_provider, ignore_errors=True, **kwargs)
+            raise NuleculeException('Rolled back changes.')
+
+    def stop(self, cli_provider, ignore_errors=False, **kwargs):
         """
         Stops a running Nulecule application.
 
         Args:
             cli_provider (str): Provider running the Nulecule application
+            ignore_errors (bool): Ignore errors, if any, when True
             kwargs (dict): Extra keyword arguments
         """
         # For stop we use the generated answer file from the run
@@ -346,7 +356,7 @@ class NuleculeManager(object):
             self.app_path, config=self.answers, dryrun=dryrun)
         self.nulecule.load_config(config=self.answers)
         self.nulecule.render(cli_provider, dryrun=dryrun)
-        self.nulecule.stop(cli_provider, dryrun)
+        self.nulecule.stop(cli_provider, dryrun, ignore_errors)
 
     def clean(self, force=False):
         # For future use

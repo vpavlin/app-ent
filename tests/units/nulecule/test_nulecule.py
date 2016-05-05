@@ -31,6 +31,7 @@ class TestNuleculeStop(unittest.TestCase):
     def test_stop(self):
         provider = 'docker'
         dryrun = False
+        ignore_errors = False
         mock_component_1 = mock.Mock()
         mock_component_2 = mock.Mock()
 
@@ -38,8 +39,10 @@ class TestNuleculeStop(unittest.TestCase):
         n.components = [mock_component_1, mock_component_2]
         n.stop(provider)
 
-        mock_component_1.stop.assert_called_once_with(provider, dryrun)
-        mock_component_2.stop.assert_called_once_with(provider, dryrun)
+        mock_component_1.stop.assert_called_once_with(
+            provider, dryrun, ignore_errors)
+        mock_component_2.stop.assert_called_once_with(
+            provider, dryrun, ignore_errors)
 
 
 class TestNuleculeLoadConfig(unittest.TestCase):
