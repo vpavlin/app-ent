@@ -160,7 +160,7 @@ class DockerHandler(object):
         Utils.rm_dir(tmpdir)
 
         # Clean up dummy container
-        rm_cmd = [self.docker_cli, 'rm', '-f', container_id]
+        rm_cmd = [self.docker_cli, 'rm', '-f', container_id[:12]]
         logger.debug('Removing Docker container: %s' % ' '.join(rm_cmd))
         subprocess.check_output(rm_cmd)
 
