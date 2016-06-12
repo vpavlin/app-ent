@@ -17,39 +17,38 @@
  along with Atomic App. If not, see <http://www.gnu.org/licenses/>.
 """
 
-import unittest
-import pytest
-import mock
-import tempfile
 import os
-import jsonpointer
-import anymarkup
-from atomicapp.nulecule.base import NuleculeComponent
+import unittest
+
+import mock
+import pytest
+
+from atomicapp.nulecule.base import Nulecule
 from atomicapp.nulecule.exceptions import NuleculeException
 
-def mock_params_get_call(self, test):
+def mock_params_get_call():
     return {"image": ["/spec/containers/0/image", "/metadata/labels/app"],
             "host": ["/spec/containers/0/ports/0/hostPort"]}
 
 class TestNuleculeXpathing(unittest.TestCase):
 
-    # Create a temporary directory for our setup as well as load the required NuleculeComponent
+    # Create a temporary directory for our setup as well as load the required Nulecule
     def setUp(self):
         self.example_dir = os.path.dirname(__file__) + '/artifact_xpath_test/'
         self.artifact_path = os.path.dirname(__file__) + '/artifact_xpath_test/xpath.json'
-        self.artifact_content = open(self.artifact_path, 'r').read();
-        self.test = NuleculeComponent(name = None, basepath = self.example_dir, params = None)
+        self.artifact_content = open(self.artifact_path, 'r').read()
+        self.test = Nulecule('some-id', '0.0.2', basepath=self.example_dir, params=None)
 
     def tearDown(self):
         pass
 
     # Let's check to see that xpathing is actually working. Fake the params get call
-    @mock.patch("atomicapp.nulecule.base.NuleculeComponent.grab_artifact_params", mock_params_get_call)
+    @mock.patch("atomicapp.nulecule.base.Nulecule.grab_artifact_params", mock_params_get_call)
     def test_xpathing_parse(self):
         self.test.apply_pointers(content=self.artifact_content, params={"image": ["/spec/containers/0/image"]})
 
     # Fail if we're unable to replace the /spec/containers/1/image pointer
-    @mock.patch("atomicapp.nulecule.base.NuleculeComponent.grab_artifact_params", mock_params_get_call)
+    @mock.patch("atomicapp.nulecule.base.Nulecule.grab_artifact_params", mock_params_get_call)
     def test_xpathing_not_found(self):
         with pytest.raises(NuleculeException):
             self.test.apply_pointers(content=self.artifact_content, params={"image": ["/spec/containers/1/image"]})

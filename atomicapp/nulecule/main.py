@@ -17,25 +17,31 @@
  You should have received a copy of the GNU Lesser General Public License
  along with Atomic App. If not, see <http://www.gnu.org/licenses/>.
 """
-import anymarkup
-import copy
-import distutils.dir_util
-import logging
+from collections import OrderedDict
+from copy import deepcopy
+from distutils.dir_util import copy_tree, remove_tree
+from itertools import product
+from logging import getLogger
 import os
-import tempfile
-import urlparse
-import urllib
 from string import Template
+from tempfile import mkdtemp
+from urllib import urlopen
+from urlparse import urlparse
 
-from atomicapp.constants import (GLOBAL_CONF,
-                                 ANSWERS_FILE_SAMPLE_FORMAT,
-                                 ANSWERS_FILE,
+from anymarkup import serialize_file
+from networkx import DiGraph, topological_sort
+
+from atomicapp.constants import (ANSWERS_FILE,
                                  ANSWERS_FILE_SAMPLE,
+                                 ANSWERS_FILE_SAMPLE_FORMAT,
                                  ANSWERS_RUNTIME_FILE,
                                  DEFAULT_ANSWERS,
+                                 EXTERNAL_APP_DIR,
+                                 GLOBAL_CONF,
                                  LOGGER_COCKPIT,
                                  LOGGER_DEFAULT,
                                  MAIN_FILE,
+                                 NAME_KEY,
                                  PROVIDER_KEY,
                                  __ATOMICAPPVERSION__,
                                  __NULECULESPECVERSION__)
@@ -43,8 +49,8 @@ from atomicapp.nulecule.base import Nulecule
 from atomicapp.nulecule.exceptions import NuleculeException
 from atomicapp.utils import Utils
 
-cockpit_logger = logging.getLogger(LOGGER_COCKPIT)
-logger = logging.getLogger(LOGGER_DEFAULT)
+cockpit_logger = getLogger(LOGGER_COCKPIT)
+logger = getLogger(LOGGER_DEFAULT)
 
 
 class NuleculeManager(object):
@@ -53,8 +59,8 @@ class NuleculeManager(object):
     Interface to fetch, run, stop a Nulecule application.
     """
 
-    def __init__(self, app_spec, destination=None,
-                 cli_answers=None, answers_file=None):
+    def __init__(self, app_spec, destination=None, cli_answers=None,
+                 answers_file=None):
         """
         init function for NuleculeManager. Sets a few instance variables.
 
@@ -65,53 +71,20 @@ class NuleculeManager(object):
             cli_answers: some answer file values provided from cli args
             answers_file: the location of the answers file
         """
-        self.answers = copy.deepcopy(DEFAULT_ANSWERS)
+        self.answers = deepcopy(DEFAULT_ANSWERS)
         self.cli_answers = cli_answers
-        self.answers_format = None
         self.answers_file = None  # The path to an answer file
         self.app_path = None  # The path where the app resides or will reside
         self.image = None     # The container image to pull the app from
 
-        # Adjust app_spec, destination, and answer file paths if absolute.
-        if os.path.isabs(app_spec):
-            app_spec = Utils.get_real_abspath(app_spec)
-        if destination and os.path.isabs(destination):
-            destination = Utils.get_real_abspath(destination)
+        self.__dict__.update(self._process_app_spec(app_spec, destination))
+
+        # Adjust answer file path if absolute.
         if answers_file and os.path.isabs(answers_file):
             answers_file = Utils.get_real_abspath(answers_file)
 
-        # If the user doesn't want the files copied to a permanent
-        # location then he provides 'none'. If that is the case we'll
-        # use a temporary directory
-        if destination and destination.lower() == 'none':
-            logger.debug("'none' destination requested. Using tmp dir")
-            destination = tempfile.mkdtemp(prefix='atomicapp')
-
-        # Determine if the user passed us an image or a path to an app
-        if not os.path.exists(app_spec):
-            self.image = app_spec
-        else:
-            self.app_path = app_spec
-
-        # Doesn't really make much sense to provide an app path and destination,
-        # but if they want to we'll simply just copy the files for them
-        if self.app_path and destination:
-            Utils.copy_dir(self.app_path, destination, update=True)
-            self.app_path = destination
-
-        # If the user provided an image, make sure we have a destination
-        if self.image:
-            if destination:
-                self.app_path = destination
-            else:
-                self.app_path = Utils.getNewAppCacheDir(self.image)
-
         logger.debug("NuleculeManager init app_path: %s", self.app_path)
         logger.debug("NuleculeManager init image: %s", self.image)
-
-        # Create the app_path if it doesn't exist yet
-        if not os.path.isdir(self.app_path):
-            os.makedirs(self.app_path)
 
         # Set where the main nulecule file should be
         self.main_file = os.path.join(self.app_path, MAIN_FILE)
@@ -157,15 +130,15 @@ class NuleculeManager(object):
                 return  # Exit out as the user has chosen not to proceed
 
         # Temporary working dir to render the templates
-        tmpdir = tempfile.mkdtemp(prefix='nulecule-new-app-')
+        tmpdir = mkdtemp(prefix='nulecule-new-app-')
         template_dir = os.path.join(os.path.dirname(__file__),
                                     'external/templates/nulecule')
 
         try:
             # Copy template dir to temporary working directory and render templates
-            distutils.dir_util.copy_tree(template_dir, tmpdir)
+            copy_tree(template_dir, tmpdir)
             for item in os.walk(tmpdir):
-                parent_dir, dirs, files = item
+                parent_dir, _, files = item
                 for filename in files:
                     if not filename.endswith('.tpl'):
                         continue
@@ -185,14 +158,55 @@ class NuleculeManager(object):
                     os.remove(templ_path)
 
             # Copy rendered templates to destination directory
-            distutils.dir_util.copy_tree(tmpdir, destination, True)
+            copy_tree(tmpdir, destination, True)
         finally:
             # Remove temporary working directory
-            distutils.dir_util.remove_tree(tmpdir)
+            remove_tree(tmpdir)
         return destination
 
-    def unpack(self, update=False,
-               dryrun=False, nodeps=False, config=None):
+    def digraph(self, update=False, dryrun=False, nodeps=False, config=None,
+                **kwargs):
+        """
+        Args:
+            update (bool): Update existing Nulecule application in
+                           app_path, if True
+            dryrun (bool): Do not make any change to the host system
+            nodeps (bool): Do not unpack external dependencies
+            config (dict): Config data, if any, to use for unpacking
+            kwargs (dict): Extra keyword arguments
+
+        Returns:
+            networkx.DiGraph of Nulecule objects
+        """
+        digraph = DiGraph()
+
+        (progenitor,
+         internals,
+         externals) = self.unpack(config=config, dryrun=dryrun, nodeps=nodeps,
+                                  update=update, **kwargs)
+
+        digraph.add_node(progenitor)
+
+        for internal in internals:
+            digraph.add_edge(progenitor, internal)
+
+        for external in externals:
+            app_spec = Utils.getSourceImage(external)
+            name = external[NAME_KEY]
+            destination = "%s/%s/%s" % (self.app_path, EXTERNAL_APP_DIR, name)
+            if app_spec is not None:
+                kwargs.update({'namespace': name})
+                kwargs.update(self._process_app_spec(app_spec, destination))
+                subgraph = self.digraph(**kwargs)
+                if isinstance(subgraph, DiGraph) and subgraph.order() > 0:
+                    patronage = internals or [progenitor]
+                    subprogenitor = topological_sort(subgraph, reverse=False)[0]
+                    digraph.add_edges_from(product(patronage, [subprogenitor]))
+                    digraph.add_edges_from(subgraph.edges())
+
+        return digraph
+
+    def unpack(self, update=False, dryrun=False, config=None, **kwargs):
         """
         Unpacks a Nulecule application from a Nulecule image to a path
         or load a Nulecule that already exists locally.
@@ -203,22 +217,26 @@ class NuleculeManager(object):
             dryrun (bool): Do not make any change to the host system
             nodeps (bool): Do not unpack external dependencies
             config (dict): Config data, if any, to use for unpacking
+            kwargs (dict): Extra keyword arguments
 
         Returns:
             A Nulecule instance.
         """
-        logger.debug('Request to unpack to %s to %s' %
-                     (self.image, self.app_path))
+        namespace = kwargs.get("namespace", GLOBAL_CONF)
+        app_path = kwargs.get("app_path", self.app_path)
+        image = kwargs.get("image", self.image)
 
         # If the user provided an image then unpack it and return the
         # resulting Nulecule. Else, load from existing path
-        if self.image:
-            return Nulecule.unpack(
-                self.image, self.app_path, config=config,
-                nodeps=nodeps, dryrun=dryrun, update=update)
+        if image:
+            logger.debug('Request to unpack to %s to %s', image, app_path)
+
+            return Nulecule.unpack(image, app_path, config=config,
+                                   dryrun=dryrun, update=update,
+                                   namespace=namespace)
         else:
-            return Nulecule.load_from_path(
-                self.app_path, dryrun=dryrun, config=config)
+            return Nulecule.load_from_path(app_path, dryrun=dryrun,
+                                           config=config, namespace=namespace)
 
     def genanswers(self, dryrun=False, answers_format=None, **kwargs):
         """
@@ -233,33 +251,31 @@ class NuleculeManager(object):
         Returns:
             None
         """
-        self.answers_format = answers_format or ANSWERS_FILE_SAMPLE_FORMAT
-
         # Check to make sure an answers.conf file doesn't exist already
         answers_file = os.path.join(os.getcwd(), ANSWERS_FILE)
         if os.path.exists(answers_file):
             raise NuleculeException(
                 "Can't generate answers.conf over existing file")
 
-        # Call unpack to get the app code
-        self.nulecule = self.unpack(update=False, dryrun=dryrun, config=self.answers)
+        # Call digraph to get the app code
+        digraph = self.digraph(update=False, dryrun=dryrun, config=self.answers)
+        progenitor = topological_sort(digraph, reverse=False)[0]
 
-        self.nulecule.load_config(config=self.nulecule.config,
-                                  skip_asking=True)
-        # Get answers and write them out to answers.conf in cwd
-        answers = self._get_runtime_answers(
-            self.nulecule.config, None)
+        answers = {}
+        for nulecule in topological_sort(digraph, reverse=True):
+            nulecule.load_config(config=progenitor.config, skip_asking=True)
+            nulecule.load_config(config=nulecule.config, skip_asking=True)
+            # Get answers and write them out to answers.conf in cwd
+            answers.update(self._get_runtime_answers(nulecule.config, None))
         self._write_answers(answers_file, answers, answers_format)
 
-    def fetch(self, nodeps=False, update=False, dryrun=False,
+    def fetch(self, update=False, dryrun=False,
               answers_format=ANSWERS_FILE_SAMPLE_FORMAT, **kwargs):
         """
         Installs (unpacks) a Nulecule application from a Nulecule image
         to a target path.
         Args:
             answers (dict or str): Answers data or local path to answers file
-            nodeps (bool): Install the nulecule application without installing
-                           external dependencies
             update (bool): Pull requisite Nulecule image and install or
                            update already installed Nulecule application
             dryrun (bool): Do not make any change to the host system if True
@@ -268,20 +284,20 @@ class NuleculeManager(object):
         Returns:
             None
         """
-        self.answers_format = answers_format or ANSWERS_FILE_SAMPLE_FORMAT
-
-        # Call unpack. If the app doesn't exist it will be pulled. If
+        # Call digraph. If the app doesn't exist it will be pulled. If
         # it does exist it will be just be loaded and returned
-        self.nulecule = self.unpack(update, dryrun, config=self.answers)
+        digraph = self.digraph(update, dryrun, config=self.answers)
+        progenitor = topological_sort(digraph, reverse=False)[0]
 
-        self.nulecule.load_config(config=self.nulecule.config,
-                                  skip_asking=True)
-        runtime_answers = self._get_runtime_answers(
-            self.nulecule.config, None)
+        answers = {}
+        for nulecule in topological_sort(digraph, reverse=True):
+            nulecule.load_config(config=progenitor.config, skip_asking=True)
+            nulecule.load_config(config=nulecule.config, skip_asking=True)
+            answers.update(self._get_runtime_answers(nulecule.config, None))
         # write sample answers file
         self._write_answers(
             os.path.join(self.app_path, ANSWERS_FILE_SAMPLE),
-            runtime_answers, answers_format)
+            answers, answers_format)
 
     cockpit_logger.info("Install Successful.")
 
@@ -305,29 +321,31 @@ class NuleculeManager(object):
         Returns:
             None
         """
-        self.answers_format = answers_format or ANSWERS_FILE_SAMPLE_FORMAT
         dryrun = kwargs.get('dryrun') or False
 
-        # Call unpack. If the app doesn't exist it will be pulled. If
+        # Call digraph. If the app doesn't exist it will be pulled. If
         # it does exist it will be just be loaded and returned
-        self.nulecule = self.unpack(dryrun=dryrun, config=self.answers)
+        digraph = self.digraph(dryrun=dryrun, config=self.answers)
+        progenitor = topological_sort(digraph, reverse=False)[0]
 
         # If we didn't find an answers file before then call _process_answers
         # again just in case the app developer embedded an answers file
         if not self.answers_file:
             self._process_answers()
 
-        self.nulecule.load_config(config=self.nulecule.config, ask=ask)
-        self.nulecule.render(cli_provider, dryrun)
-        self.nulecule.run(cli_provider, dryrun)
-        runtime_answers = self._get_runtime_answers(
-            self.nulecule.config, cli_provider)
+        answers = {}
+        for nulecule in topological_sort(digraph, reverse=True):
+            nulecule.load_config(config=progenitor.config, ask=ask)
+            nulecule.load_config(config=nulecule.config, ask=ask)
+            nulecule.render(cli_provider)
+            nulecule.run(cli_provider, dryrun)
+            answers.update(self._get_runtime_answers(
+                nulecule.config, cli_provider))
         self._write_answers(
             os.path.join(self.app_path, ANSWERS_RUNTIME_FILE),
-            runtime_answers, self.answers_format)
+            answers, answers_format)
         if answers_output:
-            self._write_answers(answers_output, runtime_answers,
-                                self.answers_format)
+            self._write_answers(answers_output, answers, answers_format)
 
     def stop(self, cli_provider, **kwargs):
         """
@@ -342,17 +360,71 @@ class NuleculeManager(object):
         self._process_answers()
 
         dryrun = kwargs.get('dryrun') or False
-        self.nulecule = Nulecule.load_from_path(
-            self.app_path, config=self.answers, dryrun=dryrun)
-        self.nulecule.load_config(config=self.answers)
-        self.nulecule.render(cli_provider, dryrun=dryrun)
-        self.nulecule.stop(cli_provider, dryrun)
+        digraph = self.digraph(dryrun=dryrun, config=self.answers)
+
+        for nulecule in topological_sort(digraph, reverse=False):
+            nulecule.load_config(config=self.answers)
+            nulecule.render(cli_provider)
+            nulecule.stop(cli_provider, dryrun)
 
     def clean(self, force=False):
         # For future use
-        self.uninstall()
-        distutils.dir_util.remove_tree(self.unpack_path)
-        self.initialize()
+        # self.uninstall()
+        # remove_tree(self.unpack_path)
+        # self.initialize()
+        raise NotImplementedError
+
+    @staticmethod
+    def _process_app_spec(app_spec, destination):
+        """
+        Args:
+            app_spec: either a path to an unpacked nulecule app or a
+                      container image name where a nulecule can be found
+            destination: where to unpack a nulecule to if it isn't local
+
+        Returns:
+            app_path, image (dict)
+        """
+        app_path = None
+        image = None
+
+        # Adjust app_spec, and destination paths if absolute.
+        if os.path.isabs(app_spec):
+            app_spec = Utils.get_real_abspath(app_spec)
+        if destination and os.path.isabs(destination):
+            destination = Utils.get_real_abspath(destination)
+
+        # If the user doesn't want the files copied to a permanent
+        # location then he provides 'none'. If that is the case we'll
+        # use a temporary directory
+        if destination and destination.lower() == 'none':
+            logger.debug("'none' destination requested. Using tmp dir")
+            destination = mkdtemp(prefix='atomicapp')
+
+        # Determine if the user passed us an image or a path to an app
+        if not os.path.exists(app_spec):
+            image = app_spec
+        else:
+            app_path = app_spec
+
+        # Doesn't really make much sense to provide an app path and destination,
+        # but if they want to we'll simply just copy the files for them
+        if app_path and destination:
+            Utils.copy_dir(app_path, destination, update=True)
+            app_path = destination
+
+        # If the user provided an image, make sure we have a destination
+        if image:
+            if destination:
+                app_path = destination
+            else:
+                app_path = Utils.getNewAppCacheDir(image)
+
+        # Create the app_path if it doesn't exist yet
+        if not os.path.isdir(app_path):
+            os.makedirs(app_path)
+
+        return {'app_path': app_path, 'image': image}
 
     def _process_answers(self):
         """
@@ -380,11 +452,11 @@ class NuleculeManager(object):
         if self.answers_file:
 
             # If this is a url then download answers file to app directory
-            if urlparse.urlparse(self.answers_file).scheme != "":
-                logger.debug("Retrieving answers file from: {}"
-                             .format(self.answers_file))
+            if urlparse(self.answers_file).scheme != "":
+                logger.debug("Retrieving answers file from: %s",
+                             self.answers_file)
                 with open(app_path_answers, 'w+') as f:
-                    stream = urllib.urlopen(self.answers_file)
+                    stream = urlopen(self.answers_file)
                     f.write(stream.read())
                 self.answers_file = app_path_answers
 
@@ -401,7 +473,8 @@ class NuleculeManager(object):
             for k, v in self.cli_answers.iteritems():
                 self.answers[GLOBAL_CONF][k] = v
 
-    def _write_answers(self, path, answers, answers_format):
+    @staticmethod
+    def _write_answers(path, answers, answers_format):
         """
         Write answers data to file.
 
@@ -413,16 +486,18 @@ class NuleculeManager(object):
         Returns:
             None
         """
+        answers = OrderedDict(sorted(answers.items(), key=lambda i: (i[0] != 'general', i[0])))
         logger.debug("Writing answers to file.")
         logger.debug("FILE: %s", path)
         logger.debug("ANSWERS: %s", answers)
-        anymarkup.serialize_file(answers, path, format=answers_format)
+        serialize_file(answers, path, format=answers_format)
 
     # TODO - once we rework config data we shouldn't need this
     # function anymore, we should be able to take the data
     # straight from the config object since the defaults and args
     # provided from the cli would have already been merged.
-    def _get_runtime_answers(self, config, cli_provider):
+    @staticmethod
+    def _get_runtime_answers(config, cli_provider):
         """
         Get runtime answers data from config (Nulecule config) by adding
         default data if missing.
@@ -434,7 +509,7 @@ class NuleculeManager(object):
         Returns:
             dict
         """
-        _config = copy.deepcopy(config)
+        _config = deepcopy(config)
         _config[GLOBAL_CONF] = config.get(GLOBAL_CONF) or {}
 
         # If a provider is provided via CLI, override the config parameter

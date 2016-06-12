@@ -1,4 +1,5 @@
 anymarkup
 jsonpointer
+networkx
 requests
 websocket-client
