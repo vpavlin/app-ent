@@ -2,3 +2,4 @@ anymarkup
 jsonpointer
 requests
 websocket-client
+docker-py
