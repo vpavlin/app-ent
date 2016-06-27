@@ -198,7 +198,7 @@ class NuleculeManager(object):
                 kwargs.update({'namespace': name})
                 kwargs.update(self._process_app_spec(app_spec, destination))
                 subgraph = self.digraph(**kwargs)
-                if isinstance(subgraph, DiGraph) and subgraph.order() > 0:
+                if subgraph.order() > 0:
                     patronage = internals or [progenitor]
                     subprogenitor = topological_sort(subgraph, reverse=False)[0]
                     digraph.add_edges_from(product(patronage, [subprogenitor]))

@@ -77,6 +77,8 @@ class Nulecule(object):
             params (list): List of params for the Nulecule application
             config (dict): Config data for the Nulecule application
             namespace (str): Namespace of the current Nulecule application
+            artifacts (list): A list of ArtifactsObject that contain provider
+                specific information
             progenitor (bool): Whether or not Nulecule instance is attributable
                 to parent manifest as opposed to deployable graph component
 
