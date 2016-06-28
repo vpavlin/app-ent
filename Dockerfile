@@ -19,7 +19,8 @@ ADD requirements.txt ./
 RUN yum install -y epel-release && \
     yum install -y --setopt=tsflags=nodocs docker && \
     yum install -y --setopt=tsflags=nodocs $(sed s/^/python-/ requirements.txt) && \
-    yum clean all
+    yum clean all && \
+    pip install networkx==1.11
 
 WORKDIR /atomicapp
 

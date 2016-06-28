@@ -1,5 +1,5 @@
 anymarkup
 jsonpointer
-networkx
+pip
 requests
 websocket-client
