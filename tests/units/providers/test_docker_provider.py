@@ -17,62 +17,62 @@
  along with Atomic App. If not, see <http://www.gnu.org/licenses/>.
 """
 
-import unittest
-import pytest
-import mock
-import tempfile
 import os
-import json
-from atomicapp.plugin import Plugin, ProviderFailedException
-from atomicapp.nulecule.lib import NuleculeBase
+import tempfile
+import unittest
+
+import mock
+import pytest
+
+from atomicapp.nulecule.base import Nulecule
+from atomicapp.plugin import ProviderFailedException
 from atomicapp.providers.docker import DockerProvider
-from atomicapp.constants import DEFAULT_CONTAINER_NAME, DEFAULT_NAMESPACE
 
 def mock_name_get_call(self):
     return ["test_centos-httpd_e9b9a7bfe8f9"]
 
 class TestDockerProviderBase(unittest.TestCase):
-    
+
     # Create a temporary directory for our setup as well as load the required providers
     def setUp(self):
-        self.nulecule_base = NuleculeBase(params = [], basepath = os.getcwd(), namespace = "test")
-        self.tmpdir = tempfile.mkdtemp(prefix = "atomicapp-test", dir = "/tmp")
+        self.nulecule = Nulecule('some-id', '0.0.2', params=[], basepath=os.getcwd(), namespace="test")
+        self.tmpdir = tempfile.mkdtemp(prefix="atomicapp-test", dir="/tmp")
         self.artifact_dir = os.path.dirname(__file__) + '/docker_artifact_test/'
 
     def tearDown(self):
         pass
-    
+
     # Lets prepare the docker provider with pre-loaded configuration and use the DockerProvider
     def prepare_provider(self, data):
-        self.nulecule_base.load_config(data)
-        config = self.nulecule_base.config
-        provider = DockerProvider(config, self.tmpdir, dryrun = True)
+        self.nulecule.load_config(data)
+        config = self.nulecule.config
+        provider = DockerProvider(config, self.tmpdir, dryrun=True)
         return provider
 
     # Test deploying multiple artifacts within docker
     def test_multiple_artifact_load(self):
-        data = {'namespace': 'test', 'provider': 'docker'}
+        data = {'general': {'namespace': 'test', 'provider': 'docker'}}
         provider = self.prepare_provider(data)
         provider.init()
         provider.artifacts = [
-                self.artifact_dir + 'hello-world-one',
-                self.artifact_dir + 'hello-world-two',
-                self.artifact_dir + 'hello-world-three'
-                ]
+            self.artifact_dir + 'hello-world-one',
+            self.artifact_dir + 'hello-world-two',
+            self.artifact_dir + 'hello-world-three'
+            ]
         # Mock the effects of 'docker ps -a'. As if each deployment adds the container to the host
-        mock_container_list = mock.Mock(side_effect = [
-            ["test_fedora-httpd_e9b9a7bfe8f9"], 
+        mock_container_list = mock.Mock(side_effect=[
+            ["test_fedora-httpd_e9b9a7bfe8f9"],
             ["test_fedora-httpd_e9b9a7bfe8f9", "test_centos-httpd_e9b9a7bfe8f9"],
             ["test_fedora-httpd_e9b9a7bfe8f9", "test_centos-httpd_e9b9a7bfe8f9", "test_centos-httpd_e9b9a7bfe8f9"]
             ])
         with mock.patch("atomicapp.providers.docker.DockerProvider._get_containers", mock_container_list):
             provider.run()
 
-   
-    # Patch in a general container list and make sure it fails if there is already a container with the same name 
+
+    # Patch in a general container list and make sure it fails if there is already a container with the same name
     @mock.patch("atomicapp.providers.docker.DockerProvider._get_containers", mock_name_get_call)
     def test_namespace_name_check(self):
-        data = {'namespace': 'test', 'provider': 'docker', 'image': 'centos/httpd'}
+        data = {'general': {'namespace': 'test', 'provider': 'docker', 'image': 'centos/httpd'}}
         provider = self.prepare_provider(data)
         provider.init()
         provider.artifacts = [self.artifact_dir + 'hello-world-one']
@@ -80,12 +80,12 @@ class TestDockerProviderBase(unittest.TestCase):
             provider.run()
 
     def test_docker_run_with_backslashes(self):
-        data = {'namespace': 'test', 'provider': 'docker'}
+        data = {'general': {'namespace': 'test', 'provider': 'docker'}}
         provider = self.prepare_provider(data)
         provider.init()
         provider.artifacts = [
-                self.artifact_dir + 'run-with-backslashes',
-                ]
+            self.artifact_dir + 'run-with-backslashes',
+            ]
         expected_output = 'docker run -d -p 80:80 --name centos7 centos7'
         with mock.patch('atomicapp.providers.docker.logger') as mock_logger:
             provider.run()

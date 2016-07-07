@@ -1,7 +1,9 @@
-import mock
-import unittest
-import pytest
 import os
+import unittest
+
+import mock
+import pytest
+
 from atomicapp.nulecule.base import Nulecule
 from atomicapp.nulecule.exceptions import NuleculeException
 
@@ -10,7 +12,8 @@ class TestNuleculeRun(unittest.TestCase):
 
     """Test Nulecule run"""
 
-    def test_run(self):
+    @staticmethod
+    def test_run():
         provider = 'docker'
         dryrun = False
         mock_component_1 = mock.Mock()
@@ -28,7 +31,8 @@ class TestNuleculeStop(unittest.TestCase):
 
     """Test Nulecule stop"""
 
-    def test_stop(self):
+    @staticmethod
+    def test_stop():
         provider = 'docker'
         dryrun = False
         mock_component_1 = mock.Mock()
@@ -57,7 +61,7 @@ class TestNuleculeLoadConfig(unittest.TestCase):
             'group2': {'1': '2'}
         }
 
-        n = Nulecule(id='some-id', specversion='0.0.2', metadata={}, graph=[], basepath='some/path')
+        n = Nulecule(id='some-id', specversion='0.0.2', metadata={}, basepath='some/path')
         n.components = [mock_component_1]
         n.load_config(config)
 
@@ -79,7 +83,7 @@ class TestNuleculeLoadConfig(unittest.TestCase):
             'group2': {'1': '2'}
         }
 
-        n = Nulecule(id='some-id', specversion='0.0.2', metadata={}, graph=[],
+        n = Nulecule(id='some-id', specversion='0.0.2', metadata={},
                      basepath='some/path',
                      params=[{'name': 'provider', 'default': 'some-provider'}])
         n.components = [mock_component_1]
@@ -104,7 +108,7 @@ class TestNuleculeLoadConfig(unittest.TestCase):
             'group2': {'1': '2'}
         }
 
-        n = Nulecule(id='some-id', specversion='0.0.2', metadata={}, graph=[],
+        n = Nulecule(id='some-id', specversion='0.0.2', metadata={},
                      basepath='some/path',
                      params=[{'name': 'provider', 'default': 'some-provider'}])
         n.components = [mock_component_1]
@@ -119,10 +123,11 @@ class TestNuleculeLoadConfig(unittest.TestCase):
 
 class TestNuleculeLoadComponents(unittest.TestCase):
 
-    """Test loading NuleculeComponents for a Nulecule"""
+    """Test loading Nulecules for a Nulecule"""
 
-    @mock.patch('atomicapp.nulecule.base.NuleculeComponent')
-    def test_load_components(self, MockNuleculeComponent):
+    @staticmethod
+    @mock.patch('atomicapp.nulecule.base.Nulecule')
+    def test_load_components(MockNulecule):
         graph = [
             {
                 'name': 'app1',
@@ -140,10 +145,10 @@ class TestNuleculeLoadComponents(unittest.TestCase):
         n = Nulecule('some-id', '0.0.2', graph, 'some/path', {})
         n.load_components()
 
-        MockNuleculeComponent.assert_any_call(
+        MockNulecule.assert_any_call(
             graph[0]['name'], n.basepath, 'somecontainer',
             graph[0]['params'], None, {})
-        MockNuleculeComponent.assert_any_call(
+        MockNulecule.assert_any_call(
             graph[1]['name'], n.basepath, None,
             graph[1].get('params'), graph[1].get('artifacts'), {})
 
@@ -152,30 +157,32 @@ class TestNuleculeRender(unittest.TestCase):
 
     """Test Nulecule render"""
 
-    def test_render(self):
+    @staticmethod
+    def test_render():
         mock_component_1 = mock.Mock()
         mock_component_2 = mock.Mock()
         provider_key = 'foo'
-        dryrun = True
 
-        n = Nulecule('some-id', '0.0.2', {}, [], 'some/path')
+        n = Nulecule('some-id', '0.0.2', {}, [], 'some/path', progenitor=True)
         n.components = [mock_component_1, mock_component_2]
-        n.render(provider_key, dryrun)
+        n.render(provider_key)
 
         mock_component_1.render.assert_called_once_with(
-            provider_key=provider_key, dryrun=dryrun)
+            provider_key=provider_key)
         mock_component_2.render.assert_called_once_with(
-            provider_key=provider_key, dryrun=dryrun)
+            provider_key=provider_key)
 
 
 class TestLoadNuleculeParsing(unittest.TestCase):
 
-    def test_missing_nulecule(self):
+    @staticmethod
+    def test_missing_nulecule():
         n = Nulecule('some-id', '0.0.2', {}, [], 'some/path')
         with pytest.raises(NuleculeException):
             n.load_from_path(src='foo/bar')
 
-    def test_invalid_nulecule_format(self):
+    @staticmethod
+    def test_invalid_nulecule_format():
         n = Nulecule('some-id', '0.0.2', {}, [], 'some/path')
         with pytest.raises(NuleculeException):
             n.load_from_path(src=os.path.dirname(__file__) + '/invalid_nulecule/')

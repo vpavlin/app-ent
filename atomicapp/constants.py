@@ -15,12 +15,10 @@
 
  You should have received a copy of the GNU Lesser General Public License
  along with Atomic App. If not, see <http://www.gnu.org/licenses/>.
-"""
 
-"""
-Update the below LABELS if ATOMICAPPVERSION & NULECULESPECVERSION are updated:
-1) LABEL io.projectatomic.nulecule.atomicappversion in atomicapp Dockerfile
-2) LABEL io.projectatomic.nulecule.specversion  in app Dockefile
+ Update the below LABELS if ATOMICAPPVERSION & NULECULESPECVERSION are updated:
+ 1) LABEL io.projectatomic.nulecule.atomicappversion in atomicapp Dockerfile
+ 2) LABEL io.projectatomic.nulecule.specversion  in app Dockerfile
 """
 
 __ATOMICAPPVERSION__ = '0.6.1'
@@ -31,7 +29,9 @@ GLOBAL_CONF = "general"
 APP_ENT_PATH = "application-entity"
 CACHE_DIR = "/var/lib/atomicapp"
 
+GRAPH_KEY = "graph"
 PARAMS_KEY = "params"
+SOURCE_KEY = "source"
 RESOURCE_KEY = "resource"
 INHERIT_KEY = "inherit"
 ARTIFACTS_KEY = "artifacts"

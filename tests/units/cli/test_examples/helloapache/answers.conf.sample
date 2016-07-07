@@ -1,10 +1,10 @@
 {
-  "helloapache-app": {
-    "image": "centos/httpd",
-    "hostport": 80
-  },
   "general": {
     "namespace": "default",
     "provider": "kubernetes"
+  },
+  "helloapache-app": {
+    "image": "centos/httpd",
+    "hostport": 80
   }
 }

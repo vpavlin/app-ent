@@ -17,43 +17,43 @@
  You should have received a copy of the GNU Lesser General Public License
  along with Atomic App. If not, see <http://www.gnu.org/licenses/>.
 """
-import anymarkup
-import copy
-import logging
-import os
-import yaml
-import re
-
 from collections import defaultdict
+from copy import deepcopy
+from logging import getLogger
+import os
+import re
 from string import Template
 
+from anymarkup import AnyMarkupError, parse, serialize
+from jsonpointer import resolve_pointer, set_pointer, JsonPointerException
+from yaml import parser
+
 from atomicapp.constants import (APP_ENT_PATH,
-                                 EXTERNAL_APP_DIR,
+                                 DEFAULTNAME_KEY,
+                                 DEFAULT_PROVIDER,
                                  GLOBAL_CONF,
+                                 GRAPH_KEY,
+                                 INHERIT_KEY,
                                  LOGGER_COCKPIT,
                                  LOGGER_DEFAULT,
                                  MAIN_FILE,
-                                 RESOURCE_KEY,
-                                 PARAMS_KEY,
                                  NAME_KEY,
-                                 INHERIT_KEY,
-                                 ARTIFACTS_KEY,
-                                 DEFAULT_PROVIDER)
+                                 PARAMS_KEY,
+                                 PROVIDERS,
+                                 PROVIDER_KEY,
+                                 RESOURCE_KEY)
 from atomicapp.utils import Utils
+from atomicapp.plugin import Plugin
 from atomicapp.requirements import Requirements
-from atomicapp.nulecule.lib import NuleculeBase
 from atomicapp.nulecule.container import DockerHandler
 from atomicapp.nulecule.exceptions import NuleculeException
 from atomicapp.providers.openshift import OpenshiftProvider
 
-from jsonpointer import resolve_pointer, set_pointer, JsonPointerException
-from anymarkup import AnyMarkupError
-
-cockpit_logger = logging.getLogger(LOGGER_COCKPIT)
-logger = logging.getLogger(LOGGER_DEFAULT)
+cockpit_logger = getLogger(LOGGER_COCKPIT)
+logger = getLogger(LOGGER_DEFAULT)
 
 
-class Nulecule(NuleculeBase):
+class Nulecule(object):
 
     """
     This represents an application compliant with Nulecule specification.
@@ -62,37 +62,51 @@ class Nulecule(NuleculeBase):
     componenents, but does not have access to its parent's scope.
     """
 
-    def __init__(self, id, specversion, graph, basepath, metadata=None,
+    def __init__(self, id, specversion, basepath, metadata=None,
                  requirements=None, params=None, config=None,
-                 namespace=GLOBAL_CONF):
+                 namespace=GLOBAL_CONF, artifacts=None, progenitor=False):
         """
         Create a Nulecule instance.
 
         Args:
             id (str): Nulecule application ID
             specversion (str): Nulecule spec version
-            graph (list): Nulecule graph of components
             basepath (str): Basepath for Nulecule application
             metadata (dict): Nulecule metadata
             requirements (dict): Requirements for the Nulecule application
             params (list): List of params for the Nulecule application
             config (dict): Config data for the Nulecule application
             namespace (str): Namespace of the current Nulecule application
+            artifacts (list): A list of ArtifactsObject that contain provider
+                specific information
+            progenitor (bool): Whether or not Nulecule instance is attributable
+                to parent manifest as opposed to deployable graph component
 
         Returns:
             A Nulecule instance
         """
-        super(Nulecule, self).__init__(basepath, params, namespace)
-        self.id = id
-        self.specversion = specversion
-        self.metadata = metadata or {}
-        self.graph = graph
-        self.requirements = requirements
+        self.artifacts = artifacts
+        self.basepath = basepath
         self.config = config or {}
+        self.id = id
+        self.metadata = metadata or {}
+        self.namespace = namespace
+        self.params = params or []
+        self.plugin = Plugin()
+        self.rendered_artifacts = defaultdict(list)
+        self.requirements = requirements
+        self.specversion = specversion
+        self.progenitor = progenitor
+
+    def __eq__(self, other):
+        return self.id == other.id and self.progenitor == other.progenitor
+
+    def __hash__(self):
+        return hash((self.id, self.progenitor,))
 
     @classmethod
     def unpack(cls, image, dest, config=None, namespace=GLOBAL_CONF,
-               nodeps=False, dryrun=False, update=False):
+               dryrun=False, update=False):
         """
         Pull and extracts a docker image to the specified path, and loads
         the Nulecule application from the path.
@@ -111,7 +125,7 @@ class Nulecule(NuleculeBase):
         Returns:
             A Nulecule instance, or None in case of dry run.
         """
-        logger.info('Unpacking image %s to %s' % (image, dest))
+        logger.info('Unpacking image %s to %s', image, dest)
         if Utils.running_on_openshift():
             # pass general config data containing provider specific data
             # to Openshift provider
@@ -120,17 +134,19 @@ class Nulecule(NuleculeBase):
             op.init()
             op.extract(image, APP_ENT_PATH, dest, update)
         else:
-            docker_handler = DockerHandler(dryrun=dryrun)
-            docker_handler.pull(image)
-            docker_handler.extract(image, APP_ENT_PATH, dest, update)
-            cockpit_logger.info("All dependencies installed successfully.")
+            if os.path.isfile("%s/Nulecule" % dest) and not update:
+                logger.info('Found existing destination %s ', dest)
+            else:
+                docker_handler = DockerHandler(dryrun=dryrun)
+                docker_handler.pull(image)
+                docker_handler.extract(image, APP_ENT_PATH, dest, update)
+                cockpit_logger.info("All dependencies installed successfully.")
         return cls.load_from_path(
-            dest, config=config, namespace=namespace, nodeps=nodeps,
-            dryrun=dryrun, update=update)
+            dest, config=config, namespace=namespace, dryrun=dryrun)
 
     @classmethod
     def load_from_path(cls, src, config=None, namespace=GLOBAL_CONF,
-                       nodeps=False, dryrun=False, update=False):
+                       dryrun=False):
         """
         Load a Nulecule application from a path in the source path itself, or
         in the specified destination path.
@@ -141,12 +157,14 @@ class Nulecule(NuleculeBase):
             namespace (str): Namespace for Nulecule application.
             nodeps (bool): Do not pull external applications if True.
             dryrun (bool): Do not make any change to underlying host.
-            update (bool): Update existing application if True, else reuse it.
 
         Returns:
-            A Nulecule instance or None in case of some dry run (fetching
-            an image).
+            A tuple of internal and external Nulecule instances.
         """
+        progenitor = None
+        internals = []
+        externals = []
+
         nulecule_path = os.path.join(src, MAIN_FILE)
 
         if os.path.exists(nulecule_path):
@@ -162,10 +180,10 @@ class Nulecule(NuleculeBase):
         # By default, AnyMarkup converts all formats to YAML when parsing.
         # Thus the rescue works either on JSON or YAML.
         try:
-            nulecule_data = anymarkup.parse(nulecule_data)
-        except (yaml.parser.ParserError, AnyMarkupError), e:
-            line = re.search('line (\d+)', str(e)).group(1)
-            column = re.search('column (\d+)', str(e)).group(1)
+            nulecule_data = parse(nulecule_data)
+        except (parser.ParserError, AnyMarkupError) as e:
+            line = re.search(r'line (\d+)', str(e)).group(1)
+            column = re.search(r'column (\d+)', str(e)).group(1)
 
             output = ""
             for i, l in enumerate(nulecule_data.splitlines()):
@@ -174,11 +192,25 @@ class Nulecule(NuleculeBase):
 
             raise NuleculeException("Failure parsing %s file. Validation error on line %s, column %s:\n%s"
                                     % (nulecule_path, line, column, output))
+        else:
+            kwargs = deepcopy(nulecule_data)
+            kwargs['progenitor'] = True
+            del kwargs[GRAPH_KEY]
+            progenitor = Nulecule(config=config, basepath=src,
+                                  namespace=namespace, **kwargs)
 
-        nulecule = Nulecule(config=config, basepath=src,
-                            namespace=namespace, **nulecule_data)
-        nulecule.load_components(nodeps, dryrun)
-        return nulecule
+            for item in nulecule_data.get(GRAPH_KEY, []):
+                if Utils.isExternal(item):
+                    externals += [item]
+                else:
+                    kwargs = deepcopy(nulecule_data)
+                    kwargs.update(item)
+                    del kwargs[GRAPH_KEY]
+                    del kwargs[NAME_KEY]
+                    internals += [Nulecule(config=config, basepath=src,
+                                           namespace=kwargs['id'], **kwargs)]
+
+        return (progenitor, internals, externals)
 
     def run(self, provider_key=None, dryrun=False):
         """
@@ -200,10 +232,13 @@ class Nulecule(NuleculeBase):
             Requirements(self.config, self.basepath, self.requirements,
                          provider_key, dryrun).run()
 
-        # Process components
-        for component in self.components:
-            component.run(provider_key, dryrun)
-            cockpit_logger.info("Component %s installed successfully" % provider_key)
+        cockpit_logger.info("Deploying component %s ...", self.id)
+        provider_key, provider = self.get_provider(provider_key, dryrun)
+        provider.artifacts = self.rendered_artifacts.get(provider_key, [])
+        provider.init()
+        # TODO: add idempotency to provider requests
+        provider.run()
+        cockpit_logger.info("Component %s installed successfully", provider_key)
 
     def stop(self, provider_key=None, dryrun=False):
         """
@@ -219,8 +254,11 @@ class Nulecule(NuleculeBase):
         """
         provider_key, provider = self.get_provider(provider_key, dryrun)
         # stop the Nulecule application
-        for component in self.components:
-            component.stop(provider_key, dryrun)
+        provider_key, provider = self.get_provider(provider_key, dryrun)
+        provider.artifacts = self.rendered_artifacts.get(provider_key, [])
+        provider.init()
+        # TODO: add idempotency to provider requests
+        provider.stop()
 
     def load_config(self, config=None, ask=False, skip_asking=False):
         """
@@ -236,47 +274,26 @@ class Nulecule(NuleculeBase):
         Returns:
             None
         """
-        super(Nulecule, self).load_config(
-            config=config, ask=ask, skip_asking=skip_asking)
-        if self.namespace == GLOBAL_CONF and self.config[GLOBAL_CONF].get('provider') is None:
+        for param in self.params:
+            value = config.get(self.namespace, {}).get(param[NAME_KEY]) or \
+                config.get(GLOBAL_CONF, {}).get(param[NAME_KEY])
+            if value is None and (ask or (
+                    not skip_asking and param.get(DEFAULTNAME_KEY) is None)):
+                cockpit_logger.info("%s is missing in answers.conf.", param[NAME_KEY])
+                value = Utils.askFor(param[NAME_KEY], param)
+            elif value is None:
+                value = param.get(DEFAULTNAME_KEY)
+            if config.get(self.namespace) is None:
+                config[self.namespace] = {}
+            config[self.namespace][param[NAME_KEY]] = value
+        self.config = config
+
+        if self.config[GLOBAL_CONF].get('provider') is None:
             self.config[GLOBAL_CONF]['provider'] = DEFAULT_PROVIDER
-            logger.info("Provider not specified, using default provider - {}".
-                        format(DEFAULT_PROVIDER))
-        for component in self.components:
-            # FIXME: Find a better way to expose config data to components.
-            #        A component should not get access to all the variables,
-            #        but only to variables it needs.
-            component.load_config(config=copy.deepcopy(self.config),
-                                  ask=ask, skip_asking=skip_asking)
-            self.merge_config(self.config, component.config)
+            logger.info("Provider not specified, using default provider - %s",
+                        DEFAULT_PROVIDER)
 
-    def load_components(self, nodeps=False, dryrun=False):
-        """
-        Load components for the Nulecule application. Sets a list of
-        NuleculeComponent instances to self.components.
-
-        Args:
-            nodeps (bool): When True, do not external dependencies of a
-                           Nulecule component
-            dryrun (bool): When True, do not make any change to the host
-                           system
-
-        Returns:
-            None
-        """
-        components = []
-        for node in self.graph:
-            node_name = node[NAME_KEY]
-            source = Utils.getSourceImage(node)
-            component = NuleculeComponent(
-                node_name, self.basepath, source,
-                node.get(PARAMS_KEY), node.get(ARTIFACTS_KEY),
-                self.config)
-            component.load(nodeps, dryrun)
-            components.append(component)
-        self.components = components
-
-    def render(self, provider_key=None, dryrun=False):
+    def render(self, provider_key=None):
         """
         Render the artifact files for the entire Nulecule application from
         config data.
@@ -285,159 +302,26 @@ class Nulecule(NuleculeBase):
             provider_key (str): Provider for which artifacts need to be
                                 rendered. If it's None, we render artifacts
                                 for all providers.
-            dryrun (bool): Do not make any change to the host system when True
 
         Returns:
             None
         """
-        for component in self.components:
-            component.render(provider_key=provider_key, dryrun=dryrun)
-
-
-class NuleculeComponent(NuleculeBase):
-
-    """
-    Represents a component in a Nulecule application. It receives props
-    from its parent and can add new props and override props at its local
-    scope. It does not have direct access to props of sibling Nulecule
-    components, but can request the value of sibling's property from its
-    parent.
-    """
-
-    def __init__(self, name, basepath, source=None, params=None,
-                 artifacts=None, config=None):
-        super(NuleculeComponent, self).__init__(basepath, params, name)
-        self.name = name
-        self.source = source
-        self.artifacts = artifacts
-        self.rendered_artifacts = defaultdict(list)
-        self._app = None
-        self.config = config
-
-    def load(self, nodeps=False, dryrun=False):
-        """
-        Load external application of the Nulecule component.
-        """
-        cockpit_logger.info("Loading app %s ." % self.name)
-        if self.source:
-            if nodeps:
-                logger.info(
-                    'Skipping to load external application: %s' % self.name)
-            else:
-                self.load_external_application(dryrun)
-
-    def run(self, provider_key, dryrun=False):
-        """
-        Run the Nulecule component with the specified provider,
-        """
-        cockpit_logger.info("Deploying component %s ..." % self.name)
-        if self._app:
-            self._app.run(provider_key, dryrun)
-            return
-        provider_key, provider = self.get_provider(provider_key, dryrun)
-        provider.artifacts = self.rendered_artifacts.get(provider_key, [])
-        provider.init()
-        provider.run()
-
-    def stop(self, provider_key=None, dryrun=False):
-        """
-        Stop the Nulecule component with the specified provider.
-        """
-        if self._app:
-            self._app.stop(provider_key, dryrun)
-            return
-        provider_key, provider = self.get_provider(provider_key, dryrun)
-        provider.artifacts = self.rendered_artifacts.get(provider_key, [])
-        provider.init()
-        provider.stop()
-
-    def load_config(self, config=None, ask=False, skip_asking=False):
-        """
-        Load config for the Nulecule component.
-        """
-        super(NuleculeComponent, self).load_config(
-            config, ask=ask, skip_asking=skip_asking)
-        if isinstance(self._app, Nulecule):
-            self._app.load_config(config=copy.deepcopy(self.config),
-                                  ask=ask, skip_asking=skip_asking)
-            self.merge_config(self.config, self._app.config)
-
-    def load_external_application(self, dryrun=False, update=False):
-        """
-        Loads an external application for the NuleculeComponent.
-
-        Args:
-            dryrun (bool): When True, skips pulling an external application.
-            update (bool): When True, it ignores an already pulled external
-                           application, and tries to pull the external
-                           application and update the existing one.
-
-        Returns:
-            A Nulecule instance or None
-        """
-        nulecule = None
-        external_app_path = os.path.join(
-            self.basepath, EXTERNAL_APP_DIR, self.name)
-        if os.path.isdir(external_app_path) and not update:
-            logger.info(
-                'Found existing external application: %s '
-                'Loading: ' % self.name)
-            nulecule = Nulecule.load_from_path(
-                external_app_path, dryrun=dryrun, update=update)
-        elif not dryrun:
-            logger.info('Pulling external application: %s' % self.name)
-            nulecule = Nulecule.unpack(
-                self.source,
-                external_app_path,
-                config=self.config,
-                namespace=self.namespace,
-                dryrun=dryrun,
-                update=update
-            )
-        self._app = nulecule
-        cockpit_logger.info("Copied app successfully.")
-
-    @property
-    def components(self):
-        """
-        If the Nulecule component is an external application, list Nulecule
-        components of the external Nulecule application.
-        """
-        if self._app:
-            return self._app.components
-
-    def render(self, provider_key=None, dryrun=False):
-        """
-        Render the artifact files for the Nuelcule component. If the component
-        is an external Nulecule application, recurse into it to load it and
-        render it's artifacts. If provider_key is specified, render artifacts
-        only for that provider, else, render artifacts for all providers.
-
-        Args:
-            provider_key (str or None): Provider name.
-
-        Returns:
-            None
-        """
-        if self._app:
-            self._app.render(provider_key=provider_key, dryrun=dryrun)
-            return
-
-        if self.artifacts is None:
+        if not self.progenitor and self.artifacts is None:
             raise NuleculeException(
                 "No artifacts specified in the Nulecule file")
-        if provider_key and provider_key not in self.artifacts:
+        if not self.progenitor and provider_key and provider_key not in self.artifacts:
             raise NuleculeException(
                 "Data for provider \"%s\" are not part of this app"
                 % provider_key)
         context = self.get_context()
-        for provider in self.artifacts:
-            if provider_key and provider != provider_key:
-                continue
-            for artifact_path in self.get_artifact_paths_for_provider(
-                    provider):
-                self.rendered_artifacts[provider].append(
-                    self.render_artifact(artifact_path, context, provider))
+        if not self.progenitor:
+            for provider in self.artifacts:
+                if provider_key and provider != provider_key:
+                    continue
+                for artifact_path in self.get_artifact_paths_for_provider(
+                        provider):
+                    self.rendered_artifacts[provider].append(
+                        self.render_artifact(artifact_path, context, provider))
 
     def get_artifact_paths_for_provider(self, provider_key):
         """
@@ -462,7 +346,7 @@ class NuleculeComponent(NuleculeBase):
             # Convert dict if the Nulecule file references "resource"
             if isinstance(artifact, dict) and artifact.get(RESOURCE_KEY):
                 artifact = artifact[RESOURCE_KEY]
-                logger.debug("Resource xpath added: %s" % artifact)
+                logger.debug("Resource xpath added: %s", artifact)
 
             # Sanitize the file structure
             if isinstance(artifact, basestring):
@@ -500,7 +384,40 @@ class NuleculeComponent(NuleculeBase):
         else:
             return None
 
-    def apply_pointers(self, content, params):
+    def get_context(self):
+        """
+        Get context data from config data for rendering an artifact.
+        """
+        context = {}
+        context.update(self.config.get(GLOBAL_CONF) or {})
+        context.update(self.config.get(self.namespace) or {})
+        return context
+
+    def get_provider(self, provider_key=None, dry=False):
+        """
+        Get provider key and provider instance.
+
+        Args:
+            provider_key (str or None): Name of provider
+            dry (bool): Do not make change to the host system while True
+
+        Returns:
+            tuple: (provider key, provider instance)
+        """
+        # If provider_key isn't provided via CLI, let's grab it the configuration
+        if provider_key is None:
+            provider_key = self.config.get(GLOBAL_CONF)[PROVIDER_KEY]
+        provider_class = self.plugin.getProvider(provider_key)
+        if provider_class is None:
+            raise NuleculeException("Invalid Provider - '{}', provided in "
+                                    "answers.conf (choose from {})"
+                                    .format(provider_key, ', '
+                                            .join(PROVIDERS)))
+        return provider_key, provider_class(
+            self.get_context(), self.basepath, dry)
+
+    @staticmethod
+    def apply_pointers(content, params):
         """
         Let's apply all the json pointers!
         Valid params in Nulecule:
@@ -523,10 +440,10 @@ class NuleculeComponent(NuleculeBase):
             In the future we need to change this to detect haml, yaml, etc as we add more providers
             Blocked by: github.com/bkabrda/anymarkup-core/blob/master/anymarkup_core/__init__.py#L393
         """
-        obj = anymarkup.parse(content)
+        obj = parse(content)
 
-        if type(obj) != dict:
-            logger.debug("Artifact file not json/haml, assuming it's $VARIABLE substitution")
+        if not isinstance(obj, dict):
+            logger.debug("Artifact file not json/yaml, assuming it's $VARIABLE substitution")
             return content
 
         if params is None:
@@ -536,19 +453,19 @@ class NuleculeComponent(NuleculeBase):
         for name, pointers in params.items():
 
             if not pointers:
-                logger.warning("Could not find pointer for %s" % name)
+                logger.warning("Could not find pointer for %s", name)
                 continue
 
             for pointer in pointers:
                 try:
                     resolve_pointer(obj, pointer)
                     set_pointer(obj, pointer, name)
-                    logger.debug("Replaced %s pointer with %s param" % (pointer, name))
+                    logger.debug("Replaced %s pointer with %s param", pointer, name)
                 except JsonPointerException:
-                    logger.debug("Error replacing %s with %s" % (pointer, name))
+                    logger.debug("Error replacing %s with %s", pointer, name)
                     logger.debug("Artifact content: %s", obj)
-                    raise NuleculeException("Error replacing pointer %s with %s." % (pointer, name))
-        return anymarkup.serialize(obj, format="json")
+                    raise NuleculeException("Error replacing pointer %s with %s.", pointer, name)
+        return serialize(obj, format="json")
 
     def render_artifact(self, path, context, provider):
         """
@@ -584,7 +501,8 @@ class NuleculeComponent(NuleculeBase):
             1)[1]
         return render_path
 
-    def _get_artifact_paths_for_path(self, path):
+    @staticmethod
+    def _get_artifact_paths_for_path(path):
         """
         Get artifact paths for a local filesystem path. We support path to
         an artifact file or a directory containing artifact files as its

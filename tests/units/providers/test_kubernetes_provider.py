@@ -17,13 +17,12 @@
  along with Atomic App. If not, see <http://www.gnu.org/licenses/>.
 """
 
-import unittest
-import mock
-import tempfile
 import os
-import json
-from atomicapp.plugin import Plugin, ProviderFailedException
-from atomicapp.nulecule.lib import NuleculeBase
+import tempfile
+import unittest
+
+from atomicapp.nulecule.base import Nulecule
+from atomicapp.plugin import ProviderFailedException
 from atomicapp.providers.kubernetes import KubernetesProvider
 
 MOCK_CONTENT = "mock_provider_call_content"
@@ -32,21 +31,21 @@ class TestKubernetesProviderBase(unittest.TestCase):
 
     # Create a temporary directory for our setup as well as load the required providers
     def setUp(self):
-        self.nulecule_base = NuleculeBase(params = [], basepath = os.getcwd(), namespace = "test")
-        self.tmpdir = tempfile.mkdtemp(prefix = "atomicapp-test", dir = "/tmp")
+        self.nulecule = Nulecule('some-id', '0.0.2', params=[], basepath=os.getcwd(), namespace="test")
+        self.tmpdir = tempfile.mkdtemp(prefix="atomicapp-test", dir="/tmp")
         self.artifact_dir = os.path.dirname(__file__) + '/docker_artifact_test/'
 
     def tearDown(self):
         pass
 
     def create_temp_file(self):
-        return tempfile.mktemp(prefix = "test-config", dir = self.tmpdir)
+        return tempfile.mktemp(prefix="test-config", dir=self.tmpdir)
 
     # Lets prepare the docker provider with pre-loaded configuration and use the KubernetesProvider
     def prepare_provider(self, data):
-        self.nulecule_base.load_config(data)
-        config = self.nulecule_base.config
-        provider = KubernetesProvider(config, self.tmpdir, dryrun = True)
+        self.nulecule.load_config(data)
+        config = self.nulecule.config
+        provider = KubernetesProvider(config, self.tmpdir, dryrun=True)
         return provider
 
     # Check that the provider configuration file exists
@@ -56,8 +55,8 @@ class TestKubernetesProviderBase(unittest.TestCase):
         with open(provider_config_path, "w") as fp:
             fp.write(mock_content)
 
-        data = {'namespace': 'testing', 'provider': 'kubernetes', 'provider-config': provider_config_path}
-        
+        data = {'general': {'namespace': 'testing', 'provider': 'kubernetes', 'provider-config': provider_config_path}}
+
         provider = self.prepare_provider(data)
 
         self.assertEqual(provider.config_file, provider_config_path)
@@ -67,7 +66,7 @@ class TestKubernetesProviderBase(unittest.TestCase):
 
     # If we call checkConfigFile but do not provide a configuration file: fail
     def test_provider_check_config_fail(self):
-        path = self.create_temp_file()
-        data = {'namespace': 'testing', 'provider': 'openshift'}
+        self.create_temp_file()
+        data = {'general': {'namespace': 'testing', 'provider': 'openshift'}}
         provider = self.prepare_provider(data)
         self.assertRaises(ProviderFailedException, provider.checkConfigFile)
