@@ -5,7 +5,7 @@ DOCKER ?= /usr/bin/docker
 
 .PHONY: all
 all:
-	$(PYTHON) -m pytest -vv
+	$(PYTHON) -m pytest -vv --cov atomicapp
 
 .PHONY: install
 install:
@@ -15,7 +15,7 @@ install:
 test:
 	pip install -qr requirements.txt
 	pip install -qr test-requirements.txt
-	$(PYTHON) -m pytest -vv
+	$(PYTHON) -m pytest -vv --cov atomicapp
 
 .PHONY: image
 image:
