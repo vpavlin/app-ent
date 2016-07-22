@@ -54,7 +54,7 @@ class NuleculeManager(object):
     """
 
     def __init__(self, app_spec, destination=None,
-                 cli_answers=None, answers_file=None):
+                 cli_answers=None, answers_file=None, action=None):
         """
         init function for NuleculeManager. Sets a few instance variables.
 
@@ -104,7 +104,10 @@ class NuleculeManager(object):
             if destination:
                 self.app_path = destination
             else:
-                self.app_path = Utils.getNewAppCacheDir(self.image)
+                if action == 'stop':
+                    raise NuleculeException("Provide the path where application is deployed.")
+                else:
+                    self.app_path = Utils.getNewAppCacheDir(self.image)
 
         logger.debug("NuleculeManager init app_path: %s", self.app_path)
         logger.debug("NuleculeManager init image: %s", self.image)
