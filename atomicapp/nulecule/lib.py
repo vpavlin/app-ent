@@ -119,6 +119,17 @@ class NuleculeBase(object):
         # If provider_key isn't provided via CLI, let's grab it the configuration
         if provider_key is None:
             provider_key = self.config.get(GLOBAL_CONF)[PROVIDER_KEY]
+
+        # get a list of all the providers whose artifacts are specified in
+        # Nulecule file into 'providers'
+        providers = []
+        for graph in self.graph:
+            providers.extend(graph['artifacts'].keys())
+        if provider_key not in providers:
+            raise NuleculeException("Artifacts for provider - '{}', not "
+                                    "specified in 'Nulecule' file."
+                                    .format(provider_key))
+
         provider_class = self.plugin.getProvider(provider_key)
         if provider_class is None:
             raise NuleculeException("Invalid Provider - '{}', provided in "
