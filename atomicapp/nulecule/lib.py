@@ -63,8 +63,10 @@ class NuleculeBase(object):
         Returns:
             None
         """
+        parent_namespace = self._get_parent_namespace()
         for param in self.params:
             value = config.get(self.namespace, {}).get(param[NAME_KEY]) or \
+                config.get(parent_namespace, {}).get(param[NAME_KEY]) or \
                 config.get(GLOBAL_CONF, {}).get(param[NAME_KEY])
             if value is None and (ask or (
                     not skip_asking and param.get(DEFAULTNAME_KEY) is None)):
@@ -139,3 +141,7 @@ class NuleculeBase(object):
 
     def uninstall(self):
         raise NotImplementedError
+
+    def _get_parent_namespace(self):
+        tokens = self.namespace.split('__')
+        return '__'.join(tokens[:-1]) if len(tokens) > 1 else GLOBAL_CONF
