@@ -238,7 +238,7 @@ class OpenshiftProvider(Provider):
         """
         Deploys the app by given resource artifacts.
         """
-        logger.info("Deploying to Kubernetes")
+        logger.info("Deploying to OpenShift")
 
         for kind, objects in self.oc_artifacts.iteritems():
             for artifact in objects:
@@ -253,7 +253,7 @@ class OpenshiftProvider(Provider):
         Undeploy operation first scale down the replicas to 0 and then deletes
         the resource from cluster.
         """
-        logger.info("Undeploying from Kubernetes")
+        logger.info("Undeploying from OpenShift")
 
         for kind, objects in self.oc_artifacts.iteritems():
             for artifact in objects:
