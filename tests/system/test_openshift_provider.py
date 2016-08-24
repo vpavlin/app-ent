@@ -36,7 +36,7 @@ class TestWordpress(OpenshiftProviderTestSuite):
     def test_wordpress_run(self):
         self._run()
 
-        self.assertPod('wordpress', status='Running', timeout=360)
+        self.assertPod('wordpress', status='ContainerCreating', timeout=360)
         self.assertPod('mariadb', status='Running', timeout=360)
 
         self.assertService('wordpress', timeout=120)
@@ -45,7 +45,7 @@ class TestWordpress(OpenshiftProviderTestSuite):
     def test_wordpress_stop(self):
         workdir = self._run()
 
-        self.assertPod('wordpress', timeout=360)
+        self.assertPod('wordpress', status='ContainerCreating', timeout=360)
         self.assertPod('mariadb', timeout=360)
 
         self.assertService('wordpress', timeout=360)
