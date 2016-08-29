@@ -79,7 +79,8 @@ class BaseProviderTestSuite(unittest.TestCase):
 
     @property
     def nulecule_lib(self):
-        return os.environ['NULECULE_LIB']
+        return os.environ.get('NULECULE_LIB') or \
+            os.path.join(os.path.dirname(__file__), '../../../nulecule-library')
 
 
 class DockerProviderTestSuite(BaseProviderTestSuite):
