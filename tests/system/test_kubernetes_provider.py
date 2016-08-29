@@ -30,20 +30,11 @@ class TestWordpress(KubernetesProviderTestSuite):
             self.nulecule_lib, 'wordpress-centos7-atomicapp')
         return self.deploy(app_spec, self.answers)
 
-    def test_wordpress_run(self):
-        self._run()
+    def test_wordpress_lifecycle(self):
+        workdir = self._run()
 
         self.assertPod('wordpress', status='Running', timeout=360)
         self.assertPod('mariadb', status='Running', timeout=360)
-
-        self.assertService('wordpress', timeout=360)
-        self.assertService('mariadb', timeout=360)
-
-    def test_wordpress_stop(self):
-        workdir = self._run()
-
-        self.assertPod('wordpress', timeout=360)
-        self.assertPod('mariadb', timeout=360)
 
         self.assertService('wordpress', timeout=360)
         self.assertService('mariadb', timeout=360)
