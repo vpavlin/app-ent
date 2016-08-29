@@ -39,23 +39,23 @@ def answers():
     req.add_header('Authorization', 'Basic %s' % base64string)
     f = urllib2.urlopen(req)
     api_key = f.geturl().split('access_token=')[1].split('&')[0]
-    subprocess.check_call('docker exec -ti origin oc config set-credentials openshift --token={api_key}'.format(api_key=api_key), shell=True)
+    subprocess.check_call('docker exec -i origin oc config set-credentials openshift --token={api_key}'.format(api_key=api_key), shell=True)
     subprocess.check_call(
-        'docker exec -ti origin oc config set-cluster openshift1 '
+        'docker exec -i origin oc config set-cluster openshift1 '
         '--server=https://localhost:8443 --insecure-skip-tls-verify=true',
         shell=True)
     subprocess.check_call(
-        'docker exec -ti origin oc config set-context openshift '
+        'docker exec -i origin oc config set-context openshift '
         '--cluster=openshift1 --user=openshift', shell=True)
     subprocess.check_call(
-        'docker exec -ti origin oc config use-context openshift', shell=True)
+        'docker exec -i origin oc config use-context openshift', shell=True)
     subprocess.check_call(
-        'docker exec -ti origin oc config set contexts.openshift.namespace foo',
+        'docker exec -i origin oc config set contexts.openshift.namespace foo',
         shell=True)
 
     time.sleep(3)
     subprocess.check_call(
-        'docker exec -ti origin oc new-project foo', shell=True)
+        'docker exec -i origin oc new-project foo', shell=True)
     time.sleep(3)
 
     answers = """
@@ -92,11 +92,11 @@ def wait_for_os():
 def wait():
     cmd = """
   echo "Waiting for oc po/svc/rc to finish terminating..."
-  docker exec -it origin oc get po,svc,rc
+  docker exec -i origin oc get po,svc,rc
   sleep 3 # give kubectl chance to catch up to api call
   while [ 1 ]
   do
-    oc=`docker exec -it origin oc get po,svc,rc | grep Terminating`
+    oc=`docker exec -i origin oc get po,svc,rc | grep Terminating`
     if [[ $oc == "" ]]
     then
       echo "oc po/svc/rc terminated!"

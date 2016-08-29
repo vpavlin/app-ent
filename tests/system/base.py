@@ -415,19 +415,19 @@ class OpenshiftProviderTestSuite(BaseProviderTestSuite):
     def setUpClass(cls):
         openshift.stop()
         openshift.start()
-        openshift.wait()
-        time.sleep(10)
         cls.answers = anymarkup.parse(openshift.answers(), 'ini')
+        openshift.wait()
 
     @classmethod
     def tearDownClass(cls):
         openshift.stop()
 
     def setUp(self):
+        super(OpenshiftProviderTestSuite, self).setUp()
         self.os_exec('oc project %s' % self.answers['general']['namespace'])
 
     def os_exec(self, cmd):
-        output = subprocess.check_output('docker exec -ti origin %s' % cmd, shell=True)
+        output = subprocess.check_output('docker exec -i origin %s' % cmd, shell=True)
         return output
 
     def tearDown(self):
@@ -461,6 +461,8 @@ class OpenshiftProviderTestSuite(BaseProviderTestSuite):
         for rc in rcs:
             if rc not in self._rcs:
                 self.assertRc(rc, exists=False, timeout=360)
+
+        openshift.wait()
 
         time.sleep(10)
 
