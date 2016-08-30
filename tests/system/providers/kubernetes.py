@@ -8,8 +8,12 @@ import urllib
 def start():
     if not (os.path.exists('/usr/bin/kubectl') or
             os.path.exists('/usr/local/bin/kubectl')):
-        print "No kubectl bin exists? Please install."
-        return
+        print "No kubectl bin exists? Pulling..."
+        subprocess.check_call(
+            'curl http://storage.googleapis.com/kubernetes-release/release/'
+            'v1.3.5/bin/linux/amd64/kubectl > /usr/local/bin/kubectl',
+            shell=True)
+        subprocess.check_call('chmod +x /usr/local/bin/kubectl', shell=True)
 
     K8S_VERSION = '1.3.4'
 
