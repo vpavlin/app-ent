@@ -4,6 +4,12 @@ import subprocess
 import sys
 import time
 import urllib2
+import ssl
+
+
+ssl_ctx = ssl.create_default_context()
+ssl_ctx.check_hostname = False
+ssl_ctx.verify_mode = ssl.CERT_NONE
 
 
 def start():
@@ -41,7 +47,7 @@ def answers():
     base64string = base64.encodestring('openshift:openshift').replace(
         '\n', '')
     req.add_header('Authorization', 'Basic %s' % base64string)
-    f = urllib2.urlopen(req)
+    f = urllib2.urlopen(req, context=ssl_ctx)
     api_key = f.geturl().split('access_token=')[1].split('&')[0]
     subprocess.check_call('docker exec -i origin oc config set-credentials openshift --token={api_key}'.format(api_key=api_key), shell=True)
     subprocess.check_call(
@@ -83,7 +89,7 @@ def stop():
 def wait_for_os():
     while True:
         try:
-            resp = urllib2.urlopen('https://127.0.0.1:8443')
+            resp = urllib2.urlopen('https://127.0.0.1:8443', context=ssl_ctx)
             if resp.getcode() == 200:
                 break
         except IOError:
