@@ -4,18 +4,17 @@ import sys
 import time
 import urllib
 
+from atomicapp.constants import K8S_VERSION
+
 
 def start():
     if not (os.path.exists('/usr/bin/kubectl') or
             os.path.exists('/usr/local/bin/kubectl')):
-        print "No kubectl bin exists? Pulling..."
-        subprocess.check_call(
+        print "No kubectl bin exists? You can download it from %s" % (
             'curl http://storage.googleapis.com/kubernetes-release/release/'
-            'v1.3.5/bin/linux/amd64/kubectl > /usr/local/bin/kubectl',
-            shell=True)
-        subprocess.check_call('chmod +x /usr/local/bin/kubectl', shell=True)
-
-    K8S_VERSION = '1.3.4'
+            'v{k8s_version}/bin/linux/amd64/kubectl'.format(
+                k8s_version=K8S_VERSION))
+        sys.exit(1)
 
     cmd = (
         "docker run "

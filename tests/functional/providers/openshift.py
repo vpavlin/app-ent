@@ -6,6 +6,8 @@ import time
 import urllib2
 import ssl
 
+from atomicapp.constants import K8S_VERSION
+
 
 ssl_ctx = ssl.create_default_context()
 ssl_ctx.check_hostname = False
@@ -20,12 +22,10 @@ def start():
         pass
     if not (os.path.exists('/usr/bin/kubectl') or
             os.path.exists('/usr/local/bin/kubectl')):
-        print "No kubectl bin exists? Pulling..."
-        subprocess.check_call(
+        print "No kubectl bin exists? You can download it from %s" % (
             'curl http://storage.googleapis.com/kubernetes-release/release/'
-            'v1.3.5/bin/linux/amd64/kubectl > /usr/local/bin/kubectl',
-            shell=True)
-        subprocess.check_call('chmod +x /usr/local/bin/kubectl', shell=True)
+            'v{k8s_version}/bin/linux/amd64/kubectl'.format(k8s_version=K8S_VERSION))
+        sys.exit(1)
 
     cmd = """
 docker run -d --name "origin" \

@@ -17,6 +17,12 @@ test:
 	pip install -qr test-requirements.txt
 	$(PYTHON) -m pytest tests/units/ -vv --cov atomicapp
 
+.PHONY: functional-test
+functional-test:
+	pip install -qr requirements.txt
+	pip install -qr test-requirements.txt
+	$(PYTHON) -m pytest tests/functional/ -vv --cov atomicapp
+
 .PHONY: image
 image:
 	$(DOCKER) build -t $(tag) .

@@ -9,6 +9,7 @@ import unittest
 import subprocess
 from collections import OrderedDict
 import tempfile
+import uuid
 
 from .providers import kubernetes
 from .providers import openshift
@@ -47,6 +48,19 @@ class BaseProviderTestSuite(unittest.TestCase):
     Base test suite for a provider: docker, kubernetes, etc.
     """
 
+    NULECULE_LIB_REPO = 'https://github.com/projectatomic/nulecule-library'
+    NULECULE_LIB_PATH = os.path.join(os.path.dirname(__file__),
+                                     'nulecule-library')
+
+    @classmethod
+    def setUpClass(cls):
+        cls.fetch_nulecule_lib()
+        cls.build_image()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.remove_image()
+
     def setUp(self):
         self.get_initial_state()
 
@@ -79,8 +93,34 @@ class BaseProviderTestSuite(unittest.TestCase):
 
     @property
     def nulecule_lib(self):
-        return os.environ.get('NULECULE_LIB') or \
-            os.path.join(os.path.dirname(__file__), '../../../nulecule-library')
+        return self.NULECULE_LIB_PATH
+
+    @classmethod
+    def fetch_nulecule_lib(cls):
+        if not os.path.exists(cls.NULECULE_LIB_PATH):
+            subprocess.check_call(
+                'git clone {repo} {path}'.format(
+                    repo=cls.NULECULE_LIB_REPO, path=cls.NULECULE_LIB_PATH),
+                shell=True)
+        else:
+            subprocess.check_call(
+                'cd nulecule-library; git checkout master; '
+                'git pull origin master', shell=True)
+
+    @classmethod
+    def build_image(cls):
+        app_dir = os.path.join(cls.NULECULE_LIB_PATH, cls.APP_DIR_NAME)
+        cls.image_name = '{}-{}'.format(
+            cls.APP_DIR_NAME, uuid.uuid1().hex[:8])
+        subprocess.check_call(
+            'cd {app_dir}; docker build -t {image_name} .'.format(
+                app_dir=app_dir, image_name=cls.image_name),
+            shell=True)
+
+    @classmethod
+    def remove_image(cls):
+        subprocess.check_call('docker rmi {}'.format(cls.image_name),
+                              shell=True)
 
 
 class DockerProviderTestSuite(BaseProviderTestSuite):

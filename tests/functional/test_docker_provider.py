@@ -1,5 +1,3 @@
-import os
-
 from base import DockerProviderTestSuite
 
 
@@ -7,11 +5,12 @@ class TestWordpress(DockerProviderTestSuite):
     """
     Test Wordpress Atomic App on Kubernetes Provider
     """
+    APP_DIR_NAME = 'wordpress-centos7-atomicapp'
     answers = {
         'general': {
             'namespace': 'default'
         },
-        'mariadb-atomicapp': {
+        'mariadb-centos7-atomicapp:mariadb-atomicapp': {
             'db_user': 'foo',
             'db_pass': 'foo',
             'db_name': 'foo'
@@ -24,8 +23,7 @@ class TestWordpress(DockerProviderTestSuite):
     }
 
     def _run(self):
-        app_spec = os.path.join(
-            self.nulecule_lib, 'wordpress-centos7-atomicapp')
+        app_spec = self.image_name
         return self.deploy(app_spec, self.answers)
 
     def test_wordpress_run(self):

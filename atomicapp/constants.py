@@ -43,6 +43,8 @@ NAMESPACE_KEY = "namespace"
 NAMESPACE_SEPARATOR = ":"
 REQUIREMENTS_KEY = "requirements"
 
+K8S_VERSION = '1.3.5'
+
 # Nulecule spec terminology vs the function within /providers
 REQUIREMENT_FUNCTIONS = {
     "persistentVolume": "persistent_storage"

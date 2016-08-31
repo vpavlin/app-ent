@@ -12,11 +12,12 @@ class TestWordpress(OpenshiftProviderTestSuite):
     """
     Test Wordpress Atomic App on Kubernetes Provider
     """
+    APP_DIR_NAME = 'wordpress-centos7-atomicapp'
 
     def setUp(self):
         super(TestWordpress, self).setUp()
         self.answers.update({
-            'mariadb-atomicapp': {
+            'mariadb-centos7-atomicapp:mariadb-atomicapp': {
                 'db_user': 'foo',
                 'db_pass': 'foo',
                 'db_name': 'foo'
