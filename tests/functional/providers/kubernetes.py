@@ -56,12 +56,41 @@ done"""
     print output
 
 
+def clean():
+    cmd = """
+# Delete all hanging containers
+echo "\n-----Cleaning / removing all pods and containers from default namespace-----\n"
+kubectl get pvc,pv,svc,rc,po | grep -v 'k8s-\|NAME\|CONTROLLER\|kubernetes' | awk '{print $1}' | xargs --no-run-if-empty kubectl delete pvc,pv,svc,rc,po --grace-period=1 2>/dev/null"""
+    output = subprocess.check_output(cmd, shell=True)
+    print output
+
+
 def answers():
     return """
 [general]
 provider = kubernetes
 namespace = default
 """
+
+
+def wait():
+    cmd = """
+echo "Waiting for k8s po/svc/rc to finish terminating..."
+kubectl get po,svc,rc
+sleep 3 # give kubectl chance to catch up to api call
+while [ 1 ]
+do
+  k8s=`kubectl get po,svc,rc | grep Terminating`
+  if [[ $k8s == "" ]]
+  then
+    echo "k8s po/svc/rc terminated!"
+    break
+  else
+    echo "..."
+  fi
+  sleep 1
+done"""
+    subprocess.check_call(cmd, shell=True)
 
 
 def wait_until_k8s_is_up():

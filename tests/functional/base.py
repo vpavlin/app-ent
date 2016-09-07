@@ -176,7 +176,7 @@ class DockerProviderTestSuite(BaseProviderTestSuite):
     def assertContainerNotRunning(self, name):
         containers = self._get_containers()
         for _id, container in containers.items():
-            if container['name'] == name:
+            if container.get('name') == name:
                 raise AssertionError('Container: %s is running' % name)
         return True
 
@@ -231,40 +231,8 @@ class KubernetesProviderTestSuite(BaseProviderTestSuite):
         kubernetes.stop()
 
     def tearDown(self):
-        logger.debug('Teardown ...')
-        pods = self._get_pods()
-        services = self._get_services()
-        rcs = self._get_rcs()
-
-        # clean up newly created pods
-        logger.debug('clean up pods')
-        for pod in pods:
-            if pod not in self._pods:
-                subprocess.check_output('kubectl delete pod ' + pod, shell=True)
-
-        # clean up newly created services
-        for service in services:
-            if service not in self._services:
-                subprocess.check_output('kubectl delete service ' + service, shell=True)
-
-        # clean up newly created rcs
-        for rc in rcs:
-            if rc not in self._rcs:
-                subprocess.check_output('kubectl delete rc ' + rc, shell=True)
-
-        for pod in pods:
-            if pod not in self._pods:
-                self.assertPod(pod, exists=False, timeout=360)
-
-        for service in services:
-            if service not in self._services:
-                self.assertService(service, exists=False, timeout=360)
-
-        for rc in rcs:
-            if rc not in self._rcs:
-                self.assertRc(rc, exists=False, timeout=360)
-
-        time.sleep(10)
+        kubernetes.clean()
+        kubernetes.wait()
 
     def deploy(self, app_spec, answers):
         """
@@ -490,18 +458,6 @@ class OpenshiftProviderTestSuite(BaseProviderTestSuite):
         for rc in rcs:
             if rc not in self._rcs:
                 self.os_exec('oc delete rc %s' % rc)
-
-        for pod in pods:
-            if pod not in self._pods:
-                self.assertPod(pod, exists=False, timeout=360)
-
-        for service in services:
-            if service not in self._services:
-                self.assertService(service, exists=False, timeout=360)
-
-        for rc in rcs:
-            if rc not in self._rcs:
-                self.assertRc(rc, exists=False, timeout=360)
 
         openshift.wait()
 
