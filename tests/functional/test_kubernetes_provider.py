@@ -27,12 +27,13 @@ class TestWordpress(KubernetesProviderTestSuite):
         })
 
     def _run(self):
-        app_spec = os.path.join(
-            self.nulecule_lib, 'wordpress-centos7-atomicapp')
+        app_spec = self.image_name
         return self.deploy(app_spec, self.answers)
 
     def test_wordpress_lifecycle(self):
-        workdir = self._run()
+        app_spec = os.path.join(
+            self.nulecule_lib, 'wordpress-centos7-atomicapp')
+        workdir = self.deploy(app_spec, self.answers)
 
         self.assertPod('wordpress', status='Running', timeout=360)
         self.assertPod('mariadb', status='Running', timeout=360)
@@ -40,7 +41,7 @@ class TestWordpress(KubernetesProviderTestSuite):
         self.assertService('wordpress', timeout=360)
         self.assertService('mariadb', timeout=360)
 
-        self.undeploy(workdir)
+        self.undeploy(app_spec, workdir)
 
         self.assertPod('wordpress', exists=False, timeout=360)
         self.assertPod('mariadb', exists=False, timeout=360)

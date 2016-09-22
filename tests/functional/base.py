@@ -51,6 +51,7 @@ class BaseProviderTestSuite(unittest.TestCase):
     NULECULE_LIB_REPO = 'https://github.com/projectatomic/nulecule-library'
     NULECULE_LIB_PATH = os.path.join(os.path.dirname(__file__),
                                      'nulecule-library')
+    PROVIDER = None
 
     @classmethod
     def setUpClass(cls):
@@ -75,15 +76,38 @@ class BaseProviderTestSuite(unittest.TestCase):
 
     def deploy(self, app_spec, answers):
         """
-        Deploy to provider
-        """
-        raise NotImplementedError
+        Deploy app to Docker
 
-    def undeploy(self, app_spec, answers):
+        Args:
+            app_spec (str): image name or path to application
+            answers (dict): Answers data
+
+        Returns:
+            Path of the deployed dir.
         """
-        Undeploy from provider
+        destination = tempfile.mkdtemp()
+        answers_path = self.get_tmp_answers_file(answers)
+        cmd = (
+            'atomic run {app_spec} -a {answers} --provider={provider} '
+            '--destination={dest}').format(
+                app_spec=app_spec,
+                answers=answers_path,
+                provider=self.PROVIDER,
+                dest=destination)
+        subprocess.check_call(cmd, stdin=False, stderr=False, shell=True)
+        return destination
+
+    def undeploy(self, app_spec, workdir):
         """
-        raise NotImplementedError
+        Undeploy app from Docker.
+
+        Args:
+            app_spec (str): image name or path to application
+            workdir (str): Path to deployed application dir
+        """
+        cmd = 'atomic stop {app_spec} {workdir}'.format(
+            app_spec=app_spec, workdir=workdir)
+        subprocess.check_output(cmd, stdin=False, stderr=False, shell=True)
 
     def get_tmp_answers_file(self, answers):
         f = tempfile.NamedTemporaryFile(delete=False, suffix='.conf')
@@ -115,11 +139,13 @@ class BaseProviderTestSuite(unittest.TestCase):
         subprocess.check_call(
             'cd {app_dir}; docker build -t {image_name} .'.format(
                 app_dir=app_dir, image_name=cls.image_name),
+            stdin=False, stderr=False,
             shell=True)
 
     @classmethod
     def remove_image(cls):
         subprocess.check_call('docker rmi {}'.format(cls.image_name),
+                              stdin=False, stderr=False,
                               shell=True)
 
 
@@ -127,6 +153,7 @@ class DockerProviderTestSuite(BaseProviderTestSuite):
     """
     Base test suite for Docker.
     """
+    PROVIDER = 'docker'
 
     def tearDown(self):
         _containers = self._get_containers(all=True)
@@ -136,35 +163,6 @@ class DockerProviderTestSuite(BaseProviderTestSuite):
                 cmd = ['docker', 'rm', '-f', container]
                 print cmd
                 subprocess.check_output(cmd)
-
-    def deploy(self, app_spec, answers):
-        """
-        Deploy app to Docker
-
-        Args:
-            app_spec (str): image name or path to application
-            answers (dict): Answers data
-
-        Returns:
-            Path of the deployed dir.
-        """
-        destination = tempfile.mkdtemp()
-        answers_path = self.get_tmp_answers_file(answers)
-        cmd = ['atomicapp', 'run', '--answers=%s' % answers_path,
-               '--provider=docker',
-               '--destination=%s' % destination, app_spec]
-        subprocess.check_output(cmd)
-        return destination
-
-    def undeploy(self, workdir):
-        """
-        Undeploy app from Docker.
-
-        Args:
-            workdir (str): Path to deployed application dir
-        """
-        cmd = ['atomicapp', 'stop', workdir]
-        subprocess.check_output(cmd)
 
     def assertContainerRunning(self, name):
         containers = self._get_containers()
@@ -215,6 +213,7 @@ class KubernetesProviderTestSuite(BaseProviderTestSuite):
     """
     Base test suite for Kubernetes.
     """
+    PROVIDER = 'kubernetes'
 
     @classmethod
     def setUpClass(cls):
@@ -233,35 +232,6 @@ class KubernetesProviderTestSuite(BaseProviderTestSuite):
     def tearDown(self):
         kubernetes.clean()
         kubernetes.wait()
-
-    def deploy(self, app_spec, answers):
-        """
-        Deploy app to kuberntes
-
-        Args:
-            app_spec (str): image name or path to application
-            answers (dict): Answers data
-
-        Returns:
-            Path of the deployed dir.
-        """
-        destination = tempfile.mkdtemp()
-        answers_path = self.get_tmp_answers_file(answers)
-        cmd = ['atomicapp', 'run', '--answers=%s' % answers_path,
-               '--provider=kubernetes',
-               '--destination=%s' % destination, app_spec]
-        output = subprocess.check_output(' '.join(cmd), shell=True)
-        print output
-        return destination
-
-    def undeploy(self, workdir):
-        """
-        Undeploy app from kubernetes.
-
-        Args:
-            workdir (str): Path to deployed application dir
-        """
-        subprocess.check_output('atomicapp stop %s' % workdir, shell=True)
 
     def assertPod(self, name, exists=True, status=None, timeout=1):
         """
@@ -419,6 +389,7 @@ class OpenshiftProviderTestSuite(BaseProviderTestSuite):
     """
     Base test suite for Openshift.
     """
+    PROVIDER = 'openshift'
 
     @classmethod
     def setUpClass(cls):
@@ -462,34 +433,6 @@ class OpenshiftProviderTestSuite(BaseProviderTestSuite):
         openshift.wait()
 
         time.sleep(10)
-
-    def deploy(self, app_spec, answers):
-        """
-        Deploy app to kuberntes
-
-        Args:
-            app_spec (str): image name or path to application
-            answers (dict): Answers data
-
-        Returns:
-            Path of the deployed dir.
-        """
-        destination = tempfile.mkdtemp()
-        answers_path = self.get_tmp_answers_file(answers)
-        cmd = ['atomicapp', 'run', '--answers=%s' % answers_path,
-               '--provider=openshift',
-               '--destination=%s' % destination, app_spec]
-        subprocess.check_output(' '.join(cmd), shell=True)
-        return destination
-
-    def undeploy(self, workdir):
-        """
-        Undeploy app from kubernetes.
-
-        Args:
-            workdir (str): Path to deployed application dir
-        """
-        subprocess.check_output('atomicapp stop %s' % workdir, shell=True)
 
     def assertPod(self, name, exists=True, status=None, timeout=1):
         """
