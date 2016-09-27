@@ -426,6 +426,7 @@ class OpenshiftProviderTestSuite(BaseProviderTestSuite):
         openshift.stop()
         openshift.start()
         cls.answers = anymarkup.parse(openshift.answers(), 'ini')
+        openshift.create_project('foo')
         openshift.wait()
 
     @classmethod

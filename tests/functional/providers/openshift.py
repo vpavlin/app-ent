@@ -64,9 +64,6 @@ def answers():
         shell=True)
 
     time.sleep(3)
-    subprocess.check_call(
-        'docker exec -i origin oc new-project foo', shell=True)
-    time.sleep(3)
 
     answers = """
 [general]
@@ -77,6 +74,12 @@ namespace = foo
 provider-tlsverify = False""".format(api_key=api_key)
     print answers
     return answers
+
+
+def create_project(name):
+    subprocess.check_call(
+        'docker exec -i origin oc new-project {}'.format(name), shell=True)
+    time.sleep(3)
 
 
 def stop():
