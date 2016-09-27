@@ -1,7 +1,8 @@
+import distutils.dir_util
 import os
+import re
 import logging
 import logging.config
-import re
 import time
 import anymarkup
 import datetime
@@ -51,12 +52,13 @@ class BaseProviderTestSuite(unittest.TestCase):
     NULECULE_LIB_REPO = 'https://github.com/projectatomic/nulecule-library'
     NULECULE_LIB_PATH = os.path.join(os.path.dirname(__file__),
                                      'nulecule-library')
+    BUILD_DIR = os.path.join(os.path.dirname(__file__), 'build')
     PROVIDER = None
 
     @classmethod
     def setUpClass(cls):
         cls.fetch_nulecule_lib()
-        cls.build_image()
+        cls.build()
 
     @classmethod
     def tearDownClass(cls):
@@ -85,8 +87,11 @@ class BaseProviderTestSuite(unittest.TestCase):
         Returns:
             Path of the deployed dir.
         """
-        destination = tempfile.mkdtemp()
-        answers_path = self.get_tmp_answers_file(answers)
+        destination = self.BUILD_DIR
+        answers_path = os.path.join(self.BUILD_DIR, 'answers.conf')
+        anymarkup.serialize_file(answers,
+                                 answers_path,
+                                 format='ini')
         cmd = (
             'atomic run {app_spec} -a {answers} --provider={provider} '
             '--destination={dest}').format(
@@ -132,13 +137,29 @@ class BaseProviderTestSuite(unittest.TestCase):
                 'git pull origin master', shell=True)
 
     @classmethod
-    def build_image(cls):
+    def build(cls):
         app_dir = os.path.join(cls.NULECULE_LIB_PATH, cls.APP_DIR_NAME)
+
+        build_dir = cls.BUILD_DIR
+
+        try:
+            os.rmdir(build_dir)
+        except:
+            pass
+
+        distutils.dir_util.copy_tree(app_dir, build_dir)
+
+        with open(os.path.join(build_dir, 'Dockerfile')) as f:
+            s = f.read()
+
+        with open(os.path.join(build_dir, 'Dockerfile'), 'w') as f:
+            f.write(re.sub('FROM.*', 'FROM atomicapp:build', s))
+
         cls.image_name = '{}-{}'.format(
             cls.APP_DIR_NAME, uuid.uuid1().hex[:8])
         subprocess.check_call(
-            'cd {app_dir}; docker build -t {image_name} .'.format(
-                app_dir=app_dir, image_name=cls.image_name),
+            'docker build -t {image_name} {path}'.format(
+                image_name=cls.image_name, path=build_dir),
             stdin=False, stderr=False,
             shell=True)
 
@@ -164,18 +185,25 @@ class DockerProviderTestSuite(BaseProviderTestSuite):
                 print cmd
                 subprocess.check_output(cmd)
 
-    def assertContainerRunning(self, name):
-        containers = self._get_containers()
-        for _id, container in containers.items():
-            if container['names'] == name:
-                return True
+    def assertContainerRunning(self, name, timeout=1):
+        start = datetime.datetime.now()
+        while (datetime.datetime.now() - start).total_seconds() <= timeout:
+            containers = self._get_containers()
+            for _id, container in containers.items():
+                if container['names'] == name:
+                    return True
         raise AssertionError('Container: %s not running.' % name)
 
-    def assertContainerNotRunning(self, name):
-        containers = self._get_containers()
-        for _id, container in containers.items():
-            if container.get('name') == name:
-                raise AssertionError('Container: %s is running' % name)
+    def assertContainerNotRunning(self, name, timeout=1):
+        start = datetime.datetime.now()
+        while (datetime.datetime.now() - start).total_seconds() <= timeout:
+            container_running = False
+            containers = self._get_containers()
+            for _id, container in containers.items():
+                if container.get('name') == name:
+                    container_running = True
+        if container_running:
+            raise AssertionError('Container: %s is running' % name)
         return True
 
     def get_initial_state(self):
@@ -217,6 +245,7 @@ class KubernetesProviderTestSuite(BaseProviderTestSuite):
 
     @classmethod
     def setUpClass(cls):
+        super(KubernetesProviderTestSuite, cls).setUpClass()
         logger.debug('setUpClass...')
         logger.debug('Stopping existing kubernetes instance, if any...')
         kubernetes.stop()
@@ -393,6 +422,7 @@ class OpenshiftProviderTestSuite(BaseProviderTestSuite):
 
     @classmethod
     def setUpClass(cls):
+        super(OpenshiftProviderTestSuite, cls).setUpClass()
         openshift.stop()
         openshift.start()
         cls.answers = anymarkup.parse(openshift.answers(), 'ini')

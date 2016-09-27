@@ -1,7 +1,6 @@
 from __future__ import absolute_import
 
 import logging
-import os
 
 from .base import OpenshiftProviderTestSuite
 
@@ -29,13 +28,9 @@ class TestWordpress(OpenshiftProviderTestSuite):
             }
         })
 
-    def _run(self):
-        app_spec = os.path.join(
-            self.nulecule_lib, 'wordpress-centos7-atomicapp')
-        return self.deploy(app_spec, self.answers)
-
     def test_wordpress_lifecycle(self):
-        workdir = self._run()
+        app_spec = self.image_name
+        workdir = self.deploy(app_spec, self.answers)
 
         self.assertPod('wordpress', status='ContainerCreating', timeout=120)
         self.assertPod('mariadb', status='Running', timeout=120)
@@ -43,7 +38,7 @@ class TestWordpress(OpenshiftProviderTestSuite):
         self.assertService('wpfrontend', timeout=120)
         self.assertService('mariadb', timeout=120)
 
-        self.undeploy(workdir)
+        self.undeploy(app_spec, workdir)
 
         self.assertPod('wordpress', exists=False, timeout=120)
         self.assertPod('mariadb', exists=False, timeout=120)

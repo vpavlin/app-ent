@@ -10,7 +10,7 @@ class TestWordpress(DockerProviderTestSuite):
         'general': {
             'namespace': 'default'
         },
-        'mariadb-atomicapp': {
+        'mariadb-centos7-atomicapp:mariadb-atomicapp': {
             'db_user': 'foo',
             'db_pass': 'foo',
             'db_name': 'foo'
@@ -26,10 +26,10 @@ class TestWordpress(DockerProviderTestSuite):
         app_spec = self.image_name
         workdir = self.deploy(app_spec, self.answers)
 
-        self.assertContainerRunning('wordpress-atomicapp')
-        self.assertContainerRunning('mariadb-atomicapp-app')
+        self.assertContainerRunning('wordpress-atomicapp', timeout=10)
+        self.assertContainerRunning('mariadb-atomicapp-app', timeout=10)
 
         self.undeploy(self.image_name, workdir)
 
-        self.assertContainerNotRunning('wordpress-atomicapp')
-        self.assertContainerNotRunning('mariadb-atomicapp-app')
+        self.assertContainerNotRunning('wordpress-atomicapp', timeout=10)
+        self.assertContainerNotRunning('mariadb-atomicapp-app', timeout=10)

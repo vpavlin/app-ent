@@ -21,6 +21,9 @@ test:
 functional-test:
 	pip install -qr requirements.txt
 	pip install -qr test-requirements.txt
+	./tests/functional/scripts/atomic.sh install
+	./tests/functional/scripts/prepare.sh install
+	$(DOCKER) build -t atomicapp:build .
 	$(PYTHON) -m pytest tests/functional/ -vv --cov atomicapp
 
 .PHONY: image
