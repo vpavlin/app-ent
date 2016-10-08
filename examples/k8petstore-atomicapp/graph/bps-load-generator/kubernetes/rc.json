@@ -1,0 +1,37 @@
+{
+    "apiVersion": "v1beta1",
+    "desiredState": {
+        "podTemplate": {
+            "desiredState": {
+                "manifest": {
+                    "containers": [
+                        {
+                            "command": [
+                                "sh",
+                                "-c",
+                                "/opt/PetStoreLoadGenerator-1.0/bin/PetStoreLoadGenerator http://$FRONTEND_SERVICE_HOST:3000/rpush/k8petstore/ 4 4 1000 123"
+                            ],
+                            "image": "jayunit100/bigpetstore-load-generator",
+                            "name": "bps"
+                        }
+                    ],
+                    "id": "bpsLoadGenController",
+                    "version": "v1beta1"
+                }
+            },
+            "labels": {
+                "name": "bps",
+                "uses": "frontend"
+            }
+        },
+        "replicaSelector": {
+            "name": "bps"
+        },
+        "replicas": "$LG"
+    },
+    "id": "bpsloadgenrc",
+    "kind": "ReplicationController",
+    "labels": {
+        "name": "bpsLoadGenController"
+    }
+}

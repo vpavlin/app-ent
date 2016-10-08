@@ -1,0 +1,13 @@
+{
+    "apiVersion": "v1beta1",
+    "containerPort": 6379,
+    "id": "redismaster",
+    "kind": "Service",
+    "labels": {
+        "name": "redis-master"
+    },
+    "port": 6379,
+    "selector": {
+        "name": "redis-master"
+    }
+}
