@@ -18,15 +18,14 @@
 """
 
 import os
-import subprocess
 import re
 import logging
 from atomicapp.constants import (DEFAULT_CONTAINER_NAME,
                                  DEFAULT_NAMESPACE,
                                  LOGGER_DEFAULT)
 from atomicapp.plugin import Provider, ProviderFailedException
+from atomicapp.providers.lib.shipy.dpyexec import Shipy
 from atomicapp.utils import Utils
-from atomicapp.nulecule.exceptions import DockerException
 
 logger = logging.getLogger(LOGGER_DEFAULT)
 
@@ -37,6 +36,8 @@ class DockerProvider(Provider):
     def init(self):
         self.namespace = DEFAULT_NAMESPACE
         self.default_name = DEFAULT_CONTAINER_NAME
+
+        self.shipy_exec = Shipy()
 
         logger.debug("Given config: %s", self.config)
         if self.config.get("namespace"):
@@ -54,37 +55,49 @@ class DockerProvider(Provider):
             logger.info("DRY-RUN: Did not check Docker version compatibility")
         else:
             cmd_check = ["docker", "version"]
-            try:
-                docker_version = subprocess.check_output(cmd_check).split("\n")
-            except Exception as ex:
-                raise ProviderFailedException(ex)
 
-            client = ""
-            server = ""
-            for line in docker_version:
-                if line.startswith("Client API version"):
-                    client = line.split(":")[1]
-                if line.startswith("Server API version"):
-                    server = line.split(":")[1]
+            version = self.shipy(cmd_check)
 
-            if client > server:
-                msg = ("Docker version in app image (%s) is higher than the one "
-                       "on host (%s). Please update your host." % (client, server))
-                raise ProviderFailedException(msg)
+            compatibility = {
+                '1.21': ('1.6.0', '1.7.0', '1.7.1', '1.7.2'),
+                '1.22': ('1.8.0', '1.8.1'),
+                '1.23': ('1.8.0', '1.8.1')
+            }
+
+            if version.dpy not in compatibility[version.sapi]:
+                raise Exception('docker-py version {}, using API version {} '
+                                'is not compatible with docker server using '
+                                'API version {}.\n'
+                                'Please install docker-py version one of '
+                                'the following {}'.format(
+                                    version.dpy,
+                                    version.capi,
+                                    version.sapi,
+                                    compatibility[version.sapi]))
+
+    def shipy(self, cmd):
+        return self.shipy_exec.shipy(cmd[1:], external_logger=logger)
 
     def _get_containers(self):
-        docker_cmd = 'docker ps -a --format="{{ .Names }}"'
+        docker_cmd = 'docker ps -a'
         if self.dryrun:
             logger.info("DRY-RUN: %s", docker_cmd)
             return []
         else:
-            return dict((line, 1) for line in subprocess.check_output(docker_cmd, shell=True).splitlines())
+            containers = []
+
+            output = self.shipy(docker_cmd.split())
+            for container in output:
+                containers.append(container['Names'][0].split('/')[1])
+
+            return containers
 
     def run(self):
         logger.info("Deploying to provider: Docker")
         for container in self._get_containers():
             if re.match("%s_+%s+_+[a-zA-Z0-9]{12}" % (self.namespace, self.image), container):
-                raise ProviderFailedException("Container with name %s-%s already deployed in Docker" % (self.namespace, self.image))
+                raise ProviderFailedException(
+                    "Container with name %s-%s already deployed in Docker" % (self.namespace, self.image))
 
         for artifact in self.artifacts:
             artifact_path = os.path.join(self.path, artifact)
@@ -100,16 +113,14 @@ class DockerProvider(Provider):
             if '--name' in run_args:
                 logger.warning("WARNING: Using --name provided within artifact file.")
             else:
-                run_args.insert(run_args.index('run') + 1, "--name=%s_%s_%s" % (self.namespace, self.image, Utils.getUniqueUUID()))
+                run_args.insert(run_args.index('run') + 1,
+                                "--name=%s_%s_%s" % (self.namespace, self.image, Utils.getUniqueUUID()))
 
             cmd = run_args
             if self.dryrun:
                 logger.info("DRY-RUN: %s", " ".join(cmd))
             else:
-                try:
-                    subprocess.check_output(cmd)
-                except subprocess.CalledProcessError as e:
-                    raise DockerException("%s. \n%s" % (cmd, e.output))
+                self.shipy(cmd)
 
     def stop(self):
         logger.info("Undeploying to provider: Docker")
@@ -146,7 +157,4 @@ class DockerProvider(Provider):
                 if self.dryrun:
                     logger.info("DRY-RUN: STOPPING CONTAINER %s", " ".join(cmd))
                 else:
-                    try:
-                        subprocess.check_output(cmd)
-                    except subprocess.CalledProcessError as e:
-                        raise DockerException("STOPPING CONTAINER failed: %s. \n%s" % (cmd, e.output))
+                    self.shipy(cmd)
