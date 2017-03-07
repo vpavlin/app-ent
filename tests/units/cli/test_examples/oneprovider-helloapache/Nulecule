@@ -6,6 +6,10 @@ metadata:
   name: Hello Apache App
   appversion: 0.0.1
   description: Atomic app for deploying a really basic Apache HTTP server
+params:
+  - name: provider
+    description: The provider that is used to deploy the application
+    default: docker
 graph:
   - name: helloapache-app
     params:

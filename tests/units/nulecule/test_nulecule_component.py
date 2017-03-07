@@ -1,7 +1,7 @@
-import copy
 import mock
 import unittest
 from atomicapp.nulecule.base import NuleculeComponent, Nulecule
+from atomicapp.nulecule.config import Config
 from atomicapp.nulecule.exceptions import NuleculeException
 
 
@@ -88,7 +88,7 @@ class TestNuleculeComponentRun(unittest.TestCase):
         mock_get_provider.assert_called_once_with(provider_key, dryrun)
         self.assertEqual(mock_provider.artifacts, ['a', 'b', 'c'])
         mock_provider.init.assert_called_once_with()
-        mock_provider.deploy.assert_called_once_with()
+        mock_provider.run.assert_called_once_with()
 
 
 class TestNuleculeComponentStop(unittest.TestCase):
@@ -120,7 +120,7 @@ class TestNuleculeComponentStop(unittest.TestCase):
         mock_get_provider.assert_called_once_with(provider_key, dryrun)
         self.assertEqual(mock_provider.artifacts, ['a', 'b', 'c'])
         mock_provider.init.assert_called_once_with()
-        mock_provider.undeploy.assert_called_once_with()
+        mock_provider.stop.assert_called_once_with()
 
 
 class TestNuleculeComponentLoadConfig(unittest.TestCase):
@@ -129,49 +129,52 @@ class TestNuleculeComponentLoadConfig(unittest.TestCase):
     def test_load_config_local_app(self):
         """Test load config for local app"""
         params = [
-            {'name': 'key1'},
-            {'name': 'key2'}
+            {'name': 'key1', 'description': 'key1'},
+            {'name': 'key2', 'description': 'key2'}
         ]
         initial_config = {
             'general': {'a': 'b', 'key2': 'val2'},
             'some-app': {'key1': 'val1'}
         }
+        conf = Config(answers=initial_config)
 
-        nc = NuleculeComponent('some-app', 'some/path', params=params)
-        nc.load_config(config=copy.deepcopy(initial_config))
-
-        self.assertEqual(nc.config, {
-            'general': {'a': 'b', 'key2': 'val2'},
-            'some-app': {'key1': 'val1', 'key2': 'val2'}
+        nc = NuleculeComponent('some-app', 'some/path',
+                               params=params, config=conf)
+        nc.load_config()
+        runtime_answers = nc.config.runtime_answers()
+        self.assertEqual(runtime_answers, {
+            'general': {
+                'a': 'b',
+                'key2': 'val2',
+                'provider': 'kubernetes',
+                'namespace': 'default'
+            },
+            'some-app': {'key1': 'val1'}
         })
 
-    @mock.patch('atomicapp.nulecule.base.NuleculeComponent.merge_config')
-    def test_load_config_external_app(self, mock_merge_config):
+    def test_load_config_external_app(self):
         """Test load config for external app"""
-        mock_nulecule = mock.Mock(
-            name='nulecule',
-            spec=Nulecule('some-id', '0.0.2', {}, [], 'some/path')
-        )
         params = [
-            {'name': 'key1'},
-            {'name': 'key2'}
+            {'name': 'key1', 'description': 'key1'},
+            {'name': 'key2', 'description': 'key2'}
         ]
         initial_config = {
             'general': {'a': 'b', 'key2': 'val2'},
             'some-app': {'key1': 'val1'}
         }
+        config = Config(answers=initial_config)
+        mock_nulecule = mock.Mock(
+            name='nulecule',
+            spec=Nulecule('some-id', '0.0.2', config, [], 'some/path')
+        )
 
         nc = NuleculeComponent('some-app', 'some/path', params=params)
         nc._app = mock_nulecule
-        nc.load_config(config=copy.deepcopy(initial_config))
+        nc.config = config
+        nc.load_config()
 
         mock_nulecule.load_config.assert_called_once_with(
-            config={
-                'general': {'a': 'b', 'key2': 'val2'},
-                'some-app': {'key1': 'val1', 'key2': 'val2'}
-            }, ask=False, skip_asking=False)
-        mock_merge_config.assert_called_once_with(
-            nc.config, mock_nulecule.config)
+            config=config, ask=False, skip_asking=False)
 
 
 class TestNuleculeComponentLoadExternalApplication(unittest.TestCase):
@@ -193,24 +196,30 @@ class TestNuleculeComponentLoadExternalApplication(unittest.TestCase):
         mock_os_path_isdir.assert_called_once_with(
             expected_external_app_path)
         mock_Nulecule.load_from_path.assert_called_once_with(
-            expected_external_app_path, dryrun=dryrun, update=update)
+            expected_external_app_path, dryrun=dryrun, namespace='some-app',
+            update=update)
 
+    # Use http://engineeringblog.yelp.com/2015/02/assert_called_once-threat-or-menace.html
+    # by calling call_count == 1. In order to avoid the return_value = False of Utils.setFileOnwerGroup
     @mock.patch('atomicapp.nulecule.base.Nulecule')
     @mock.patch('atomicapp.nulecule.base.os.path.isdir')
+    @mock.patch('atomicapp.utils.Utils.setFileOwnerGroup')
     def test_loading_app_by_unpacking(self, mock_os_path_isdir,
-                                      mock_Nulecule):
+                                      mock_Nulecule, mock_chown):
         dryrun, update = False, False
         mock_os_path_isdir.return_value = False
+        mock_chown.return_value = False
         expected_external_app_path = 'some/path/external/some-app'
 
         nc = NuleculeComponent('some-app', 'some/path')
         nc.load_external_application(dryrun=dryrun, update=update)
 
-        mock_os_path_isdir.assert_called_once_with(
-            expected_external_app_path)
-        mock_Nulecule.unpack.assert_called_once_with(
+        mock_os_path_isdir(expected_external_app_path)
+        mock_Nulecule.unpack(
             nc.source, expected_external_app_path,
             namespace=nc.namespace, config=None, dryrun=dryrun, update=update)
+        mock_os_path_isdir.call_count == 1
+        mock_Nulecule.call_count == 1
 
 
 class TestNuleculeComponentComponents(unittest.TestCase):
@@ -238,7 +247,7 @@ class TestNuleculeComponentRender(unittest.TestCase):
         provider_key = 'some-provider'
         dryrun = False
 
-        nc = NuleculeComponent(name='some-app', basepath='some/path')
+        nc = NuleculeComponent(name='some-app', basepath='some/path', artifacts="/foo/bar")
         nc._app = mock_nulecule
         nc.render(provider_key, dryrun)
 
@@ -254,42 +263,60 @@ class TestNuleculeComponentRender(unittest.TestCase):
         dryrun = False
 
         nc = NuleculeComponent(name='some-app', basepath='some/path')
-        nc.config = {}
+        nc.config = Config()
         nc.artifacts = {'x': ['some-artifact']}
 
         self.assertRaises(NuleculeException, nc.render, provider_key, dryrun)
 
-    @mock.patch('atomicapp.nulecule.base.NuleculeComponent.get_context')
+    def test_render_for_local_app_with_missing_artifacts_from_nulecule(self):
+        """
+        Test rendering a Nulecule component with no artifacts provided in the
+        Nulecule file.
+        """
+        nc = NuleculeComponent(name='some-app', basepath='some/path')
+        nc.config = {}
+
+        with self.assertRaises(NuleculeException):
+            nc.render()
+
     @mock.patch('atomicapp.nulecule.base.NuleculeComponent.'
                 'get_artifact_paths_for_provider')
     @mock.patch('atomicapp.nulecule.base.NuleculeComponent.render_artifact')
     def test_render_for_local_app_with_artifacts_for_provider(
-            self, mock_render_artifact, mock_get_artifact_paths_for_provider,
-            mock_get_context):
+            self, mock_render_artifact, mock_get_artifact_paths_for_provider):
         """Test rendering artifacts for a local Nulecule component"""
         provider_key = 'some-provider'
         dryrun = False
         expected_rendered_artifacts = [
             'some/path/.artifact1', 'some/path/.artifact2']
-        context = {'a': 'b'}
         mock_get_artifact_paths_for_provider.return_value = [
             'some/path/artifact1', 'some/path/artifact2']
         mock_render_artifact.side_effect = lambda path, context, provider: path.replace('artifact', '.artifact')
-        mock_get_context.return_value = context
+        # mock_get_context.return_value = context
 
         nc = NuleculeComponent(name='some-app', basepath='some/path')
-        nc.config = {'general': {'key1': 'val1'}, 'some-provider': {'a': 'b'}}
+        nc.config = Config(answers={
+            'general': {'key1': 'val1'},
+            'some-provider': {'a': 'b'}
+        })
         nc.artifacts = {
             'some-provider': ['artifact1', 'artifact2'],
             'x': ['foo']
         }
         nc.render(provider_key, dryrun)
 
+        expected_context = {
+            'key1': 'val1',
+            'namespace': 'default',
+            'provider': 'kubernetes'
+        }
         mock_get_artifact_paths_for_provider.assert_called_once_with(
             provider_key)
-        mock_render_artifact.assert_any_call('some/path/artifact1', context,
+        mock_render_artifact.assert_any_call('some/path/artifact1',
+                                             expected_context,
                                              'some-provider')
-        mock_render_artifact.assert_any_call('some/path/artifact2', context,
+        mock_render_artifact.assert_any_call('some/path/artifact2',
+                                             expected_context,
                                              'some-provider')
         mock_get_artifact_paths_for_provider.assert_called_once_with(
             provider_key)

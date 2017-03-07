@@ -20,7 +20,7 @@ from the environment of the installation container that is used to
 bootstrap the start of the application. It is not necessary to provide
 the namespace in the config.
 
-#### providerconfig / providerapi / access_token
+#### provider-config / provider-api / provider-auth
 
 At the time of execution, the Atomic App container is already running
 inside of the openshift environment and has access to the credentials

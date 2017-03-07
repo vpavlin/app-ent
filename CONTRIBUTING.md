@@ -7,6 +7,48 @@ which is hosted in the [Project Atomic Organization](https://github.com/projecta
 These are just guidelines, not rules, use your best judgment and feel free to
 propose changes to this document in a pull request.
 
+## Initial dev environment
+
+First of all, clone the github repository: `git clone https://github.com/projectatomic/atomicapp`..
+
+### Installing Atomic App locally
+Simply run
+
+```
+make install
+```
+
+If you want to do some changes to the code, I suggest to do:
+
+```
+cd atomicapp
+export PYTHONPATH=`pwd`:$PYTHONPATH
+alias atomicapp="python `pwd`/atomicapp/cli/main.py"
+```
+
+### Building for containerized execution
+```
+docker build -t [TAG] .
+```
+
+Use 'docker build' to package up the application and tag the resulting image.
+
+### Fetch and run
+```
+atomicapp [--dry-run] [-v] [-a answers.conf] fetch|run|stop|genanswers [--provider docker] [--destination DST_PATH] APP|PATH
+```
+
+Pulls the application and its dependencies. If the last argument is
+existing path, it looks for `Nulecule` file there instead of pulling anything.
+
+* `--provider docker` Use the Docker provider within the Atomic App
+* `--destination DST_PATH` Unpack the application into given directory instead of current directory
+* `APP` Name of the image containing the application (ex. `projectatomic/apache-centos7-atomicapp`)
+* `PATH` Path to a directory with installed (ex. result of `atomicapp fetch...`) app
+
+Action `run` performs `fetch` prior to its own tasks if an `APP` is provided. Otherwise, it will use its respective `PATH`. When `run` is selected, providers' code is invoked and containers are deployed.
+
+
 ## Submitting Issues
 
 * You can create an issue [here](https://github.com/projectatomic/atomicapp/issues/new), include as many details as possible with your report.
@@ -33,13 +75,11 @@ Before you submit your pull request consider the following guidelines:
 
 * Include documentation that either describe a change to a behavior of atomicapp or the changed capability to an end user of atomicapp.
 * Commit your changes using **a descriptive commit message**. If you are fixing an issue please include something like 'this closes issue #xyz'.
-* Additionally think about implementing a git hook, as flake8 is part of the [travis-ci tests](https://travis-ci.org/projectatomic/atomicapp) it will help you pass the CI tests.
+* Make sure your tests pass! As we use [travis-ci](https://travis-ci.org/projectatomic/atomicapp) with __flake8__ it's recommended to run both commands before submitting a PR.
 
     ```shell
-    $ cat .git/hooks/pre-push
-    #!/bin/bash
-
-    flake8 -v atomicapp
+    make syntax-check
+    make test
     ```
 
 * Push your branch to GitHub:
@@ -59,6 +99,8 @@ Before you submit your pull request consider the following guidelines:
     ```
 
 That's it! Thank you for your contribution!
+
+**NOTE**: When submitting a documentation PR, you can skip the travis ci by adding `[ci skip]` to your commit message.
 
 ### Merge Rules
 

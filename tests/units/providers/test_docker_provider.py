@@ -1,5 +1,5 @@
 """
- Copyright 2015 Red Hat, Inc.
+ Copyright 2014-2016 Red Hat, Inc.
 
  This file is part of Atomic App.
 
@@ -66,7 +66,7 @@ class TestDockerProviderBase(unittest.TestCase):
             ["test_fedora-httpd_e9b9a7bfe8f9", "test_centos-httpd_e9b9a7bfe8f9", "test_centos-httpd_e9b9a7bfe8f9"]
             ])
         with mock.patch("atomicapp.providers.docker.DockerProvider._get_containers", mock_container_list):
-            provider.deploy()
+            provider.run()
 
    
     # Patch in a general container list and make sure it fails if there is already a container with the same name 
@@ -77,4 +77,16 @@ class TestDockerProviderBase(unittest.TestCase):
         provider.init()
         provider.artifacts = [self.artifact_dir + 'hello-world-one']
         with pytest.raises(ProviderFailedException):
-            provider.deploy()
+            provider.run()
+
+    def test_docker_run_with_backslashes(self):
+        data = {'namespace': 'test', 'provider': 'docker'}
+        provider = self.prepare_provider(data)
+        provider.init()
+        provider.artifacts = [
+                self.artifact_dir + 'run-with-backslashes',
+                ]
+        expected_output = 'docker run -d -p 80:80 --name centos7 centos7'
+        with mock.patch('atomicapp.providers.docker.logger') as mock_logger:
+            provider.run()
+            mock_logger.info.assert_called_with('DRY-RUN: %s', expected_output)

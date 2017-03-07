@@ -1,5 +1,5 @@
 """
- Copyright 2015 Red Hat, Inc.
+ Copyright 2014-2016 Red Hat, Inc.
 
  This file is part of Atomic App.
 
@@ -20,10 +20,10 @@
 from __future__ import print_function
 import distutils.dir_util
 import os
+import pwd
 import sys
 import tempfile
 import re
-import collections
 import anymarkup
 import uuid
 import requests
@@ -36,28 +36,18 @@ from constants import (APP_ENT_PATH,
                        CACHE_DIR,
                        EXTERNAL_APP_DIR,
                        HOST_DIR,
-                       WORKDIR,
-                       ARTIFACTS_FOLDER)
+                       LOGGER_COCKPIT,
+                       LOGGER_DEFAULT,
+                       WORKDIR)
 
 __all__ = ('Utils')
 
-logger = logging.getLogger(__name__)
+cockpit_logger = logging.getLogger(LOGGER_COCKPIT)
+logger = logging.getLogger(LOGGER_DEFAULT)
 
 
 class AtomicAppUtilsException(Exception):
     pass
-
-# Following Methods(printStatus, printErrorStatus)
-#  are required for Cockpit or thirdparty management tool integration
-#  DONOT change the atomicapp.status.* prefix in the logger method.
-
-
-def printStatus(message):
-    logger.info("atomicapp.status.info.message=" + str(message))
-
-
-def printErrorStatus(message):
-    logger.info("atomicapp.status.error.message=" + str(message))
 
 
 def find_binary(executable, path=None):
@@ -271,16 +261,17 @@ class Utils(object):
         # we were asked not to.
         if checkexitcode:
             if ec != 0:
-                printErrorStatus("cmd failed: %s" % str(cmd))  # For cockpit
+                cockpit_logger.error("cmd failed: %s" % str(cmd))
                 raise AtomicAppUtilsException(
                     "cmd: %s failed: \n%s" % (str(cmd), stderr))
 
         return ec, stdout, stderr
 
     @staticmethod
-    def askFor(what, info):
+    def askFor(what, info, app_name):
         repeat = True
         desc = info["description"]
+        logger.debug(info)
         constraints = None
         if "constraints" in info:
             constraints = info["constraints"]
@@ -288,12 +279,12 @@ class Utils(object):
             repeat = False
             if "default" in info:
                 value = raw_input(
-                    "%s (%s, default: %s): " % (what, desc, info["default"]))
+                    "ANSWER => %s | %s (%s, default: %s): " % (app_name, what, desc, info["default"]))
                 if len(value) == 0:
                     value = info["default"]
             else:
                 try:
-                    value = raw_input("%s (%s): " % (what, desc))
+                    value = raw_input("ANSWER => %s | %s (%s): " % (app_name, what, desc))
                 except EOFError:
                     raise
 
@@ -305,22 +296,6 @@ class Utils(object):
                         repeat = True
 
         return value
-
-    @staticmethod
-    def update(old_dict, new_dict):
-        for key, val in new_dict.iteritems():
-            if isinstance(val, collections.Mapping):
-                tmp = Utils.update(old_dict.get(key, {}), val)
-                old_dict[key] = tmp
-            elif isinstance(val, list) and key in old_dict:
-                res = (old_dict[key] + val)
-                if isinstance(val[0], collections.Mapping):
-                    old_dict[key] = [dict(y) for y in set(tuple(x.items()) for x in res)]
-                else:
-                    old_dict[key] = list(set(res))
-            else:
-                old_dict[key] = new_dict[key]
-        return old_dict
 
     @staticmethod
     def getAppId(path):
@@ -345,7 +320,8 @@ class Utils(object):
     @staticmethod
     def inContainer():
         """
-        Determine if we are running inside a container or not.
+        Determine if we are running inside a container or not. This is done by
+        checking to see if /host has been passed.
 
         Returns:
             (bool): True == we are in a container
@@ -362,6 +338,21 @@ class Utils(object):
         else:
             return "/"
 
+    @staticmethod
+    def get_real_abspath(path):
+        """
+        Take the user provided 'path' and return the real path to the resource
+        irrespective of the app running location either inside container or
+        outside.
+
+        Args:
+            path (str): path to a resource
+
+        Returns:
+            str: absolute path to resource in the filesystem.
+        """
+        return os.path.join(Utils.getRoot(), path.lstrip('/'))
+
     # generates a unique 12 character UUID
     @staticmethod
     def getUniqueUUID():
@@ -369,13 +360,22 @@ class Utils(object):
         return data
 
     @staticmethod
-    def loadAnswers(answers_file):
+    def loadAnswers(answers_file, format=None):
         if not os.path.isfile(answers_file):
             raise AtomicAppUtilsException(
                 "Provided answers file does not exist: %s" % answers_file)
 
         logger.debug("Loading answers from file: %s", answers_file)
-        return anymarkup.parse_file(answers_file)
+        try:
+            # Try to load answers file with a specified answers file format
+            # or the default format.
+            result = anymarkup.parse_file(answers_file, format=format)
+        except anymarkup.AnyMarkupError:
+            # if no answers file format is provided and the answers file
+            # is not a JSON file, try to load it using anymarkup in a
+            # generic way.
+            result = anymarkup.parse_file(answers_file)
+        return result
 
     @staticmethod
     def copy_dir(src, dest, update=False, dryrun=False):
@@ -388,12 +388,107 @@ class Utils(object):
         distutils.dir_util.remove_tree(directory)
 
     @staticmethod
-    def getSupportedProviders(path):
-        providers = os.listdir(path + '/' + ARTIFACTS_FOLDER)
-        return providers
+    def getUidGid(user):
+        """
+        Get the UID and GID of the specific user by grepping /etc/passwd unless
+        we are in a container.
+
+        Returns:
+            (int): User UID
+            (int): User GID
+        """
+
+        # If we're in a container we should be looking in the /host/ directory
+        if Utils.inContainer():
+            os.chroot(HOST_DIR)
+            uid = pwd.getpwnam(user).pw_uid
+            gid = pwd.getpwnam(user).pw_gid
+            os.chroot("../..")
+        else:
+            uid = pwd.getpwnam(user).pw_uid
+            gid = pwd.getpwnam(user).pw_gid
+
+        return int(uid), int(gid)
 
     @staticmethod
-    def make_rest_request(method, url, verify=True, data=None):
+    def setFileOwnerGroup(src):
+        """
+        This function sets the correct uid and gid bits to a source
+        file or directory given the current user that is running Atomic
+        App.
+        """
+        user = Utils.getUserName()
+
+        # Get the UID of the User
+        uid, gid = Utils.getUidGid(user)
+
+        logger.debug("Setting gid/uid of %s to %s,%s" % (src, uid, gid))
+
+        # chown the file/dir
+        os.chown(src, uid, gid)
+
+        # If it's a dir, chown all files within it
+        if os.path.isdir(src):
+            for root, dirs, files in os.walk(src):
+                for d in dirs:
+                    os.chown(os.path.join(root, d), uid, gid)
+                for f in files:
+                    os.chown(os.path.join(root, f), uid, gid)
+
+    @staticmethod
+    def getUserName():
+        """
+        Finds the username of the user running the application. Uses the
+        SUDO_USER and USER environment variables. If runnning within a
+        container, SUDO_USER and USER varibles must be passed for proper
+        detection.
+        Ex. docker run -v /:/host -e SUDO_USER -e USER foobar
+        """
+        sudo_user = os.environ.get('SUDO_USER')
+
+        if os.getegid() == 0 and sudo_user is None:
+            user = 'root'
+        elif sudo_user is not None:
+            user = sudo_user
+        else:
+            user = os.environ.get('USER')
+        return user
+
+    @staticmethod
+    def getUserHome():
+        """
+        Finds the home directory of the user running the application.
+        If runnning within a container, the root dir must be passed as
+        a volume.
+        Ex. docker run -v /:/host -e SUDO_USER -e USER foobar
+        """
+        logger.debug("Finding the users home directory")
+        user = Utils.getUserName()
+        incontainer = Utils.inContainer()
+
+        # Check to see if we are running in a container. If we are we
+        # will chroot into the /host path before calling os.path.expanduser
+        if incontainer:
+            os.chroot(HOST_DIR)
+
+        # Call os.path.expanduser to determine the user's home dir.
+        # See https://docs.python.org/2/library/os.path.html#os.path.expanduser
+        # Warn if none is detected, don't error as not having a home
+        # dir doesn't mean we fail.
+        home = os.path.expanduser("~%s" % user)
+        if home == ("~%s" % user):
+            logger.error("No home directory exists for user %s" % user)
+
+        # Back out of chroot if necessary
+        if incontainer:
+            os.chroot("../..")
+
+        logger.debug("Running as user %s. Using home directory %s for configuration data"
+                     % (user, home))
+        return home
+
+    @staticmethod
+    def make_rest_request(method, url, verify=True, data=None, headers={}):
         """
         Make HTTP request to url
 
@@ -420,13 +515,16 @@ class Utils(object):
 
         try:
             if method.lower() == "get":
-                res = requests.get(url, verify=verify)
+                res = requests.get(url, verify=verify, headers=headers)
             elif method.lower() == "post":
-                res = requests.post(url, json=data, verify=verify)
+                res = requests.post(url, json=data, verify=verify, headers=headers)
             elif method.lower() == "put":
-                res = requests.put(url, json=data, verify=verify)
+                res = requests.put(url, json=data, verify=verify, headers=headers)
             elif method.lower() == "delete":
-                res = requests.delete(url, json=data, verify=verify)
+                res = requests.delete(url, json=data, verify=verify, headers=headers)
+            elif method.lower() == "patch":
+                headers.update({"Content-Type": "application/json-patch+json"})
+                res = requests.patch(url, json=data, verify=verify, headers=headers)
 
             status_code = res.status_code
             return_data = res.json()

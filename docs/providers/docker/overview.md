@@ -30,9 +30,9 @@ answers.conf file. An example is below:
 namespace: mynamespace
 ```
 
-#### providerconfig
+#### provider-config
 This communicates directly with the docker daemon on the host. It does
-not use the `providerconfig` option.
+not use the `provider-config` option.
 
 #### Configuration Value Defaults
 

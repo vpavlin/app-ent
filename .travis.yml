@@ -1,6 +1,7 @@
 # Travis CI checks for atomicapp
 
 language: python
+sudo: required
 
 python:
   - "2.7"
@@ -9,18 +10,16 @@ notifications:
   irc: "chat.freenode.net#nulecule"
 
 before_install:
-  - pip install pytest-cov coveralls --use-mirrors
-  - pip install pep8 --use-mirrors
-  - pip install flake8 --use-mirrors 
+  - sudo pip install pytest-cov coveralls pep8 flake8
 
 install:
-  - make install
+  - sudo make install
 
 before_script:
-  - make syntax-check
+  - sudo make syntax-check
 
 script:
-  - make test
+  - sudo make test
 
 after_success:
-  - coveralls
+  - sudo coveralls

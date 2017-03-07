@@ -1,5 +1,5 @@
 """
- Copyright 2015 Red Hat, Inc.
+ Copyright 2014-2016 Red Hat, Inc.
 
  This file is part of Atomic App.
 
@@ -20,12 +20,23 @@
 import anymarkup
 import logging
 import os
-from string import Template
 
+from atomicapp.constants import (PROVIDER_AUTH_KEY,
+                                 ANSWERS_FILE,
+                                 DEFAULT_NAMESPACE,
+                                 LOGGER_DEFAULT,
+                                 PROVIDER_API_KEY,
+                                 PROVIDER_CA_KEY,
+                                 PROVIDER_TLS_VERIFY_KEY,
+                                 LOGGER_COCKPIT,
+                                 K8S_DEFAULT_API)
 from atomicapp.plugin import Provider, ProviderFailedException
-from atomicapp.utils import printErrorStatus, Utils
 
-logger = logging.getLogger(__name__)
+from atomicapp.providers.lib.kubeshift.kubeconfig import KubeConfig
+from atomicapp.providers.lib.kubeshift.client import Client
+from atomicapp.utils import Utils
+cockpit_logger = logging.getLogger(LOGGER_COCKPIT)
+logger = logging.getLogger(LOGGER_DEFAULT)
 
 
 class KubernetesProvider(Provider):
@@ -34,221 +45,249 @@ class KubernetesProvider(Provider):
     This class implements deploy, stop and undeploy of an atomicapp on
     Kubernetes provider.
     """
+
+    # Class variables
     key = "kubernetes"
+    namespace = DEFAULT_NAMESPACE
+    k8s_artifacts = {}
+
+    # From the provider configuration
     config_file = None
-    kubectl = None
+
+    # Essential provider parameters
+    provider_api = None
+    provider_auth = None
+    provider_tls_verify = None
+    provider_ca = None
 
     def init(self):
-        self.namespace = "default"
-
-        self.k8s_manifests = []
+        self.k8s_artifacts = {}
 
         logger.debug("Given config: %s", self.config)
         if self.config.get("namespace"):
             self.namespace = self.config.get("namespace")
 
         logger.info("Using namespace %s", self.namespace)
-        if self.container:
-            self.kubectl = self._find_kubectl(Utils.getRoot())
-            kube_conf_path = "/etc/kubernetes"
-            host_kube_conf_path = os.path.join(Utils.getRoot(), kube_conf_path.lstrip("/"))
-            if not os.path.exists(kube_conf_path) and os.path.exists(host_kube_conf_path):
-                if self.dryrun:
-                    logger.info("DRY-RUN: link %s from %s" % (kube_conf_path, host_kube_conf_path))
+
+        self._process_artifacts()
+
+        if self.dryrun:
+            return
+
+        '''
+        Config_file:
+            If a config_file has been provided, use the configuration
+            from the file and load the associated generated file.
+            If a config_file exists (--provider-config) use that.
+
+        Params:
+            If any provider specific parameters have been provided,
+            load the configuration through the answers.conf file
+
+        .kube/config:
+            If no config file or params are provided by user then try to find and
+            use a config file at the default location.
+
+        no config at all:
+            If no .kube/config file can be found then try to connect to the default
+            unauthenticated http://localhost:8080/api end-point.
+        '''
+
+        default_config_loc = os.path.join(
+            Utils.getRoot(), Utils.getUserHome().strip('/'), '.kube/config')
+
+        if self.config_file:
+            logger.debug("Provider configuration provided")
+            self.api = Client(KubeConfig.from_file(self.config_file), "kubernetes")
+        elif self._check_required_params():
+            logger.debug("Generating .kube/config from given parameters")
+            self.api = Client(self._from_required_params(), "kubernetes")
+        elif os.path.isfile(default_config_loc):
+            logger.debug(".kube/config exists, using default configuration file")
+            self.api = Client(KubeConfig.from_file(default_config_loc), "kubernetes")
+        else:
+            self.config["provider-api"] = K8S_DEFAULT_API
+            self.api = Client(self._from_required_params(), "kubernetes")
+
+        # Check if the namespace that the app is being deployed to is available
+        self._check_namespaces()
+
+    def _build_param_dict(self):
+        # Initialize the values
+        paramdict = {PROVIDER_API_KEY: self.provider_api,
+                     PROVIDER_AUTH_KEY: self.provider_auth,
+                     PROVIDER_TLS_VERIFY_KEY: self.provider_tls_verify,
+                     PROVIDER_CA_KEY: self.provider_ca}
+
+        # Get values from the loaded answers.conf / passed CLI params
+        for k in paramdict.keys():
+            paramdict[k] = self.config.get(k)
+
+        return paramdict
+
+    def _check_required_params(self, exception=False):
+        '''
+        This checks to see if required parameters associated to the Kubernetes
+        provider are passed. Only PROVIDER_API_KEY is *required*. Token may be blank.
+        '''
+
+        paramdict = self._build_param_dict()
+        logger.debug("List of parameters passed: %s" % paramdict)
+
+        # Check that the required parameters are passed. If not, error out.
+        for k in [PROVIDER_API_KEY]:
+            if paramdict[k] is None:
+                if exception:
+                    msg = "You need to set %s in %s or pass it as a CLI param" % (k, ANSWERS_FILE)
+                    raise ProviderFailedException(msg)
                 else:
-                    os.symlink(host_kube_conf_path, kube_conf_path)
-        else:
-            self.kubectl = self._find_kubectl()
+                    return False
 
-        if not self.dryrun:
-            if not os.access(self.kubectl, os.X_OK):
-                raise ProviderFailedException("Command: " + self.kubectl + " not found")
+        return True
 
-            # Check if Kubernetes config file is accessible, but only
-            # if one was provided by the user; config file is optional.
-            if self.config_file:
-                self.checkConfigFile()
+    def _from_required_params(self):
+        '''
+        Create a default configuration from passed environment parameters.
+        '''
 
-    def _find_kubectl(self, prefix=""):
-        """Determine the path to the kubectl program on the host.
-        1) Check the config for a provider_cli in the general section
-           remember to add /host prefix
-        2) Search /usr/bin:/usr/local/bin
+        self._check_required_params(exception=True)
+        paramdict = self._build_param_dict()
 
-        Use the first valid value found
+        logger.debug("Building from required params")
+        # Generate the configuration from the paramters
+        config = KubeConfig().from_params(api=paramdict[PROVIDER_API_KEY],
+                                          auth=paramdict[PROVIDER_AUTH_KEY],
+                                          ca=paramdict[PROVIDER_CA_KEY],
+                                          verify=paramdict[PROVIDER_TLS_VERIFY_KEY])
+        logger.debug("Passed configuration for .kube/config %s" % config)
+        return config
+
+    def _check_namespaces(self):
+        '''
+        This function checks to see whether or not the namespaces created in the cluster match the
+        namespace that is associated and/or provided in the deployed application
+        '''
+
+        # Get the namespaces and output the currently used ones
+        namespace_list = self.api.namespaces()
+        logger.debug("There are currently %s namespaces in the cluster." % str(len(namespace_list)))
+
+        # Create a namespace list
+        namespaces = []
+        for ns in namespace_list:
+            namespaces.append(ns["metadata"]["name"])
+
+        # Output the namespaces and check to see if the one provided exists
+        logger.debug("Namespaces: %s" % namespaces)
+        if self.namespace not in namespaces:
+            msg = "%s namespace does not exist. Please create the namespace and try again." % self.namespace
+            raise ProviderFailedException(msg)
+
+    def _process_artifacts(self):
         """
-
-        if self.dryrun:
-            # Testing env does not have kubectl in it
-            return "/usr/bin/kubectl"
-
-        test_paths = ['/usr/bin/kubectl', '/usr/local/bin/kubectl']
-        if self.config.get("provider_cli"):
-            logger.info("caller gave provider_cli: " + self.config.get("provider_cli"))
-            test_paths.insert(0, self.config.get("provider_cli"))
-
-        for path in test_paths:
-            test_path = prefix + path
-            logger.info("trying kubectl at " + test_path)
-            kubectl = test_path
-            if os.access(kubectl, os.X_OK):
-                logger.info("found kubectl at " + test_path)
-                return kubectl
-
-        raise ProviderFailedException("No kubectl found in %s" % ":".join(test_paths))
-
-    def _call(self, cmd):
-        """Calls given command
-
-        :arg cmd: Command to be called in a form of list
-        :raises: Exception
-        """
-
-        if self.dryrun:
-            logger.info("DRY-RUN: %s", " ".join(cmd))
-        else:
-            ec, stdout, stderr = Utils.run_cmd(cmd, checkexitcode=True)
-            return stdout
-
-    def process_k8s_artifacts(self):
-        """Processes Kubernetes manifests files and checks if manifest under
-        process is valid.
+        Parse each Kubernetes file and convert said format into an Object for
+        deployment.
         """
         for artifact in self.artifacts:
+            logger.debug("Processing artifact: %s", artifact)
             data = None
+
+            # Open and parse the artifact data
             with open(os.path.join(self.path, artifact), "r") as fp:
-                logger.debug(os.path.join(self.path, artifact))
-                try:
-                    data = anymarkup.parse(fp)
-                except Exception:
-                    msg = "Error processing %s artifcats, Error:" % os.path.join(
-                        self.path, artifact)
-                    printErrorStatus(msg)
-                    raise
-            if "kind" in data:
-                self.k8s_manifests.append((data["kind"].lower(), artifact))
-            else:
-                apath = os.path.join(self.path, artifact)
-                raise ProviderFailedException("Malformed kube file: %s" % apath)
+                data = anymarkup.parse(fp, force_types=None)
 
-    def _resource_identity(self, path):
-        """Finds the Kubernetes resource name / identity from resource manifest
-        and raises if manifest is not supported.
+            # Process said artifacts
+            self._process_artifact_data(artifact, data)
 
-        :arg path: Absolute path to Kubernetes resource manifest
-
-        :return: str -- Resource name / identity
-
-        :raises: ProviderFailedException
+    def _process_artifact_data(self, artifact, data):
         """
-        data = anymarkup.parse_file(path)
+        Process the data for an artifact
+
+        Args:
+            artifact (str): Artifact name
+            data (dict): Artifact data
+        """
+
+        # Check if kind exists
+        if "kind" not in data.keys():
+            raise ProviderFailedException(
+                "Error processing %s artifact. There is no kind" % artifact)
+
+        # Change to lower case so it's easier to parse
+        kind = data["kind"].lower()
+
+        if kind not in self.k8s_artifacts.keys():
+            self.k8s_artifacts[kind] = []
+
+        # Fail if there is no metadata
+        if 'metadata' not in data:
+            raise ProviderFailedException(
+                "Error processing %s artifact. There is no metadata object" % artifact)
+
+        # Change to the namespace specified on init()
+        data['metadata']['namespace'] = self.namespace
+
+        if 'labels' not in data['metadata']:
+            data['metadata']['labels'] = {'namespace': self.namespace}
+        else:
+            data['metadata']['labels']['namespace'] = self.namespace
+
+        self.k8s_artifacts[kind].append(data)
+
+    '''
+    This is DEPRECATED and not needed anymore as we check the /resource URL of the kubernetes api against the artifact
+    def _identify_api(self, artifact, data):
+        """
+        Make sure that the artifact is using the correct API
+
+        Args:
+            artifact (str): Artifact name
+            data (dict): Artifact data
+        """
         if data["apiVersion"] == "v1":
-            return data["metadata"]["name"]
+            pass
         elif data["apiVersion"] in ["v1beta3", "v1beta2", "v1beta1"]:
-            msg = ("%s is not supported API version, update Kubernetes "
+            msg = ("%s is not a supported API version, update Kubernetes "
                    "artifacts to v1 API version. Error in processing "
-                   "%s manifest." % (data["apiVersion"], path))
+                   "%s manifest." % (data["apiVersion"], artifact))
             raise ProviderFailedException(msg)
         else:
-            raise ProviderFailedException("Malformed kube file: %s" % path)
+            raise ProviderFailedException("Malformed kubernetes artifact: %s" % artifact)
+    '''
 
-    def _scale_replicas(self, path, replicas=0):
-        """Scales replicationController to specified replicas size
-
-        :arg path: Path to replicationController manifest
-        :arg replicas: Replica size to scale to.
+    def run(self):
         """
-        rname = self._resource_identity(path)
-        cmd = [self.kubectl, "scale", "rc", rname,
-               "--replicas=%s" % str(replicas),
-               "--namespace=%s" % self.namespace]
-        if self.config_file:
-            cmd.append("--kubeconfig=%s" % self.config_file)
-
-        self._call(cmd)
-
-    def deploy(self):
-        """Deploys the app by given resource manifests.
+        Deploys the app by given resource artifacts.
         """
         logger.info("Deploying to Kubernetes")
-        self.process_k8s_artifacts()
 
-        for kind, artifact in self.k8s_manifests:
-            if not artifact:
-                continue
+        for kind, objects in self.k8s_artifacts.iteritems():
+            for artifact in objects:
+                if self.dryrun:
+                    logger.info("DRY-RUN: Deploying k8s KIND: %s, ARTIFACT: %s"
+                                % (kind, artifact))
+                else:
+                    self.api.create(artifact, self.namespace)
 
-            k8s_file = os.path.join(self.path, artifact)
-
-            cmd = [self.kubectl, "create", "-f", k8s_file, "--namespace=%s" % self.namespace]
-            if self.config_file:
-                cmd.append("--kubeconfig=%s" % self.config_file)
-            self._call(cmd)
-
-    def undeploy(self):
+    def stop(self):
         """Undeploys the app by given resource manifests.
         Undeploy operation first scale down the replicas to 0 and then deletes
         the resource from cluster.
         """
         logger.info("Undeploying from Kubernetes")
-        self.process_k8s_artifacts()
 
-        for kind, artifact in self.k8s_manifests:
-            if not artifact:
-                continue
+        for kind, objects in self.k8s_artifacts.iteritems():
+            for artifact in objects:
+                if self.dryrun:
+                    logger.info("DRY-RUN: Deploying k8s KIND: %s, ARTIFACT: %s"
+                                % (kind, artifact))
+                else:
+                    self.api.delete(artifact, self.namespace)
 
-            path = os.path.join(self.path, artifact)
-
-            if kind in ["ReplicationController", "rc", "replicationcontroller"]:
-                self._scale_replicas(path, replicas=0)
-
-            cmd = [self.kubectl, "delete", "-f", path, "--namespace=%s" % self.namespace]
-            if self.config_file:
-                cmd.append("--kubeconfig=%s" % self.config_file)
-            self._call(cmd)
-
+    # TODO
     def persistent_storage(self, graph, action):
-        """
-        Actions are either: run, stop or uninstall as per the Requirements class
-        Curently run is the only function implemented for k8s persistent storage
-        """
+        pass
 
-        logger.debug("Persistent storage enabled! Running action: %s" % action)
-
-        if action not in ['run']:
-            logger.warning(
-                "%s action is not available for provider %s. Doing nothing." %
-                (action, self.key))
-            return
-
-        self._check_persistent_volumes()
-
-        # Get the path of the persistent storage yaml file includes in /external
-        # Plug the information from the graph into the persistent storage file
-        base_path = os.path.dirname(os.path.realpath(__file__))
-        template_path = os.path.join(base_path,
-                                     'external/kubernetes/persistent_storage.yaml')
-        with open(template_path, 'r') as f:
-            content = f.read()
-        template = Template(content)
-        rendered_template = template.safe_substitute(graph)
-
-        tmp_file = Utils.getTmpFile(rendered_template, '.yaml')
-
-        # Pass the .yaml file and execute
-        if action is "run":
-            cmd = [self.kubectl, "create", "-f", tmp_file, "--namespace=%s" % self.namespace]
-            if self.config_file:
-                cmd.append("--kubeconfig=%s" % self.config_file)
-            self._call(cmd)
-            os.unlink(tmp_file)
-
-    def _check_persistent_volumes(self):
-            cmd = [self.kubectl, "get", "pv"]
-            if self.config_file:
-                cmd.append("--kubeconfig=%s" % self.config_file)
-            lines = self._call(cmd)
-
-            # If there are no persistent volumes to claim, warn the user
-            if not self.dryrun and len(lines.split("\n")) == 2:
-                logger.warning("No persistent volumes detected in Kubernetes. Volume claim will not "
-                               "initialize unless persistent volumes exist.")
+    # TODO
+    def _check_persistent_volumes(self, graph, action):
+        pass

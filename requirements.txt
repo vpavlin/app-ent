@@ -1,5 +1,4 @@
 anymarkup
-lockfile
 jsonpointer
 requests
 websocket-client

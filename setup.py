@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
- Copyright 2015 Red Hat, Inc.
+ Copyright 2014-2016 Red Hat, Inc.
 
  This file is part of Atomic App.
 
@@ -41,7 +41,7 @@ def _install_requirements():
 
 setup(
     name='atomicapp',
-    version='0.3.0',
+    version='0.6.4',
     description='A tool to install and run Nulecule apps',
     author='Red Hat, Inc.',
     author_email='container-tools@redhat.com',
@@ -51,7 +51,10 @@ setup(
         'console_scripts': ['atomicapp=atomicapp.cli.main:main'],
     },
     packages=find_packages(),
-    package_data={'atomicapp': ['providers/external/kubernetes/*.yaml']},
+    package_data={'atomicapp': ['providers/external/kubernetes/*.yaml',
+                                'nulecule/external/templates/nulecule/*.tpl',
+                                'nulecule/external/templates/nulecule/artifacts/docker/*.tpl',
+                                'nulecule/external/templates/nulecule/artifacts/kubernetes/*.tpl']},
     include_package_data=True,
     install_requires=_install_requirements()
 )

@@ -1,6 +1,6 @@
 # Providers
 
-This chapter includes linkes to documentation on how to use and configure the
+This chapter includes links to documentation on how to use and configure the
 providers that are supported by Atomic App. The linked documentation
 will give you a short overview of all available providers and how
 to use them.

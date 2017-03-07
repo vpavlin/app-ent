@@ -1,5 +1,5 @@
 """
- Copyright 2015 Red Hat, Inc.
+ Copyright 2014-2016 Red Hat, Inc.
 
  This file is part of Atomic App.
 
@@ -35,10 +35,10 @@ class TestNuleculeXpathing(unittest.TestCase):
 
     # Create a temporary directory for our setup as well as load the required NuleculeComponent
     def setUp(self):
-        self.tmpdir = tempfile.mkdtemp(prefix = "atomicapp-test", dir = "/tmp")
+        self.example_dir = os.path.dirname(__file__) + '/artifact_xpath_test/'
         self.artifact_path = os.path.dirname(__file__) + '/artifact_xpath_test/xpath.json'
         self.artifact_content = open(self.artifact_path, 'r').read();
-        self.test = NuleculeComponent(name = None, basepath = self.tmpdir, params = None)
+        self.test = NuleculeComponent(name = None, basepath = self.example_dir, params = None)
 
     def tearDown(self):
         pass

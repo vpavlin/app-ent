@@ -1,5 +1,5 @@
 """
- Copyright 2015 Red Hat, Inc.
+ Copyright 2014-2016 Red Hat, Inc.
 
  This file is part of Atomic App.
 
@@ -21,11 +21,14 @@ import os
 import subprocess
 import re
 import logging
-from atomicapp.constants import DEFAULT_CONTAINER_NAME, DEFAULT_NAMESPACE
+from atomicapp.constants import (DEFAULT_CONTAINER_NAME,
+                                 DEFAULT_NAMESPACE,
+                                 LOGGER_DEFAULT)
 from atomicapp.plugin import Provider, ProviderFailedException
 from atomicapp.utils import Utils
+from atomicapp.nulecule.exceptions import DockerException
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(LOGGER_DEFAULT)
 
 
 class DockerProvider(Provider):
@@ -70,14 +73,14 @@ class DockerProvider(Provider):
                 raise ProviderFailedException(msg)
 
     def _get_containers(self):
-        docker_cmd = 'docker inspect --format="{{ .Name }}" $(docker ps -aq --no-trunc) | sed "s,/,,g"'
+        docker_cmd = 'docker ps -a --format="{{ .Names }}"'
         if self.dryrun:
             logger.info("DRY-RUN: %s", docker_cmd)
             return []
         else:
             return dict((line, 1) for line in subprocess.check_output(docker_cmd, shell=True).splitlines())
 
-    def deploy(self):
+    def run(self):
         logger.info("Deploying to provider: Docker")
         for container in self._get_containers():
             if re.match("%s_+%s+_+[a-zA-Z0-9]{12}" % (self.namespace, self.image), container):
@@ -88,12 +91,14 @@ class DockerProvider(Provider):
             label_run = None
             with open(artifact_path, "r") as fp:
                 label_run = fp.read().strip()
+                # if docker-run provided as multiline command
+                label_run = ' '.join(label_run.split('\\\n'))
             run_args = label_run.split()
 
             # If --name is provided, do not re-name due to potential linking of containers. Warn user instead.
             # Else use namespace provided within answers.conf
             if '--name' in run_args:
-                logger.info("WARNING: Using --name provided within artifact file.")
+                logger.warning("WARNING: Using --name provided within artifact file.")
             else:
                 run_args.insert(run_args.index('run') + 1, "--name=%s_%s_%s" % (self.namespace, self.image, Utils.getUniqueUUID()))
 
@@ -101,9 +106,12 @@ class DockerProvider(Provider):
             if self.dryrun:
                 logger.info("DRY-RUN: %s", " ".join(cmd))
             else:
-                subprocess.check_call(cmd)
+                try:
+                    subprocess.check_output(cmd)
+                except subprocess.CalledProcessError as e:
+                    raise DockerException("%s. \n%s" % (cmd, e.output))
 
-    def undeploy(self):
+    def stop(self):
         logger.info("Undeploying to provider: Docker")
         artifact_names = list()
 
@@ -113,6 +121,12 @@ class DockerProvider(Provider):
             label_run = None
             with open(artifact_path, "r") as fp:
                 label_run = fp.read().strip()
+
+            # If user specified a name of the container via --name=NAME then
+            # then remove the equals sign since it breaks our later processing
+            label_run = label_run.replace('--name=', '--name ')
+
+            # Convert to list for processing
             run_args = label_run.split()
 
             # If any artifacts are labelled by name, add it to a container dict list
@@ -132,4 +146,7 @@ class DockerProvider(Provider):
                 if self.dryrun:
                     logger.info("DRY-RUN: STOPPING CONTAINER %s", " ".join(cmd))
                 else:
-                    subprocess.check_call(cmd)
+                    try:
+                        subprocess.check_output(cmd)
+                    except subprocess.CalledProcessError as e:
+                        raise DockerException("STOPPING CONTAINER failed: %s. \n%s" % (cmd, e.output))

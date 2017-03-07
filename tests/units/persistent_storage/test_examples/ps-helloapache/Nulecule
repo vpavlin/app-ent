@@ -23,9 +23,9 @@ graph:
     requirements:
       - persistentVolume:
           name: "var-lib-mongodb-data"
-          accessMode: "ReadWrite"
+          accessMode: "ReadWriteOnce"
           size: 4
       - persistentVolume:
           name: "var-log-mongodb"
-          accessMode: "ReadWrite"
+          accessMode: "ReadWriteOnce"
           size: 4

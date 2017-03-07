@@ -1,0 +1,6 @@
+docker run \
+-d \
+-p \
+80:80 \
+--name centos7 \
+centos7

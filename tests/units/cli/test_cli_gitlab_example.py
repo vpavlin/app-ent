@@ -1,5 +1,5 @@
 """
- Copyright 2015 Red Hat, Inc.
+ Copyright 2014-2016 Red Hat, Inc.
 
  This file is part of Atomic App.
 
@@ -76,12 +76,12 @@ class TestGitLabCli(unittest.TestCase):
                     os.remove(os.path.join(root, f))
 
     # Installs the gitlab example similarly to `test_cli.py` examples
-    def test_install_gitlab_app(self):
+    def test_fetch_gitlab_app(self):
         command = [
             "main.py",
             "--verbose",
             "--dry-run",
-            "install",
+            "fetch",
             self.examples_dir + 'gitlab/'
         ]
 

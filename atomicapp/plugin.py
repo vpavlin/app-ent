@@ -1,5 +1,5 @@
 """
- Copyright 2015 Red Hat, Inc.
+ Copyright 2014-2016 Red Hat, Inc.
 
  This file is part of Atomic App.
 
@@ -22,13 +22,14 @@
 from __future__ import print_function
 import os
 
-import imp
-
 import logging
+import importlib
 from utils import Utils
-from constants import HOST_DIR, PROVIDER_CONFIG_KEY
+from constants import (HOST_DIR,
+                       LOGGER_DEFAULT,
+                       PROVIDER_CONFIG_KEY)
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(LOGGER_DEFAULT)
 
 
 class Provider(object):
@@ -39,7 +40,9 @@ class Provider(object):
     dryrun = None
     container = False
     config_file = None
-    __artifacts = None
+
+    # By default, no artifacts are loaded
+    __artifacts = []
 
     @property
     def artifacts(self):
@@ -72,10 +75,10 @@ class Provider(object):
         """
         if PROVIDER_CONFIG_KEY in self.config:
             self.config_file = self.config[PROVIDER_CONFIG_KEY]
-            if self.container:
-                self.config_file = os.path.join(Utils.getRoot(), self.config_file.lstrip("/"))
+            if os.path.isabs(self.config_file):
+                self.config_file = Utils.get_real_abspath(self.config_file)
         else:
-            logger.warning("Configuration option '%s' not found" % PROVIDER_CONFIG_KEY)
+            logger.debug("Configuration option '%s' not provided" % PROVIDER_CONFIG_KEY)
 
     def checkConfigFile(self):
         if not self.config_file:
@@ -114,8 +117,8 @@ class Provider(object):
 
 
 class ProviderFailedException(Exception):
-
     """Error during provider execution"""
+    pass
 
 
 class Plugin(object):
@@ -124,42 +127,11 @@ class Plugin(object):
     def __init__(self, ):
         pass
 
-    def load_plugins(self):
-        run_path = os.path.dirname(os.path.realpath(__file__))
-        providers_dir = os.path.join(run_path, "providers")
-        logger.debug("Loading providers from %s", providers_dir)
-
-        plugin_classes = {}
-        plugin_class = globals()["Provider"]
-
-        for f in os.listdir(providers_dir):
-            if f.endswith(".py"):
-                module_name = os.path.basename(f).rsplit('.', 1)[0]
-                try:
-                    f_module = imp.load_source(
-                        module_name, os.path.join(providers_dir, f))
-                except (IOError, OSError, ImportError) as ex:
-                    logger.warning("can't load module '%s': %s", f, repr(ex))
-                    continue
-
-                for name in dir(f_module):
-                    binding = getattr(f_module, name, None)
-                    try:
-                        # if you try to compare binding and PostBuildPlugin, python won't match them if you call
-                        # this script directly b/c:
-                        # ! <class 'plugins.plugin_rpmqa.PostBuildRPMqaPlugin'> <= <class '__main__.PostBuildPlugin'>
-                        # but
-                        # <class 'plugins.plugin_rpmqa.PostBuildRPMqaPlugin'> <= <class 'dock.plugin.PostBuildPlugin'>
-                        is_sub = issubclass(binding, plugin_class)
-                    except TypeError:
-                        is_sub = False
-                    if binding and is_sub and plugin_class.__name__ != binding.__name__:
-                        plugin_classes[binding.key] = binding
-
-        self.plugins = plugin_classes
-
     def getProvider(self, provider_key):
-        for key, provider in self.plugins.iteritems():
-            if key == provider_key:
-                logger.debug("Found provider %s", provider)
-                return provider
+        try:
+            module = importlib.import_module("atomicapp.providers.%s" % provider_key)
+            provider_class = "%sProvider" % provider_key.capitalize()
+            provider = getattr(module, provider_class)
+        except ImportError:
+            provider = None
+        return provider

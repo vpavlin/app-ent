@@ -1,9 +1,28 @@
+"""
+ Copyright 2014-2016 Red Hat, Inc.
+
+ This file is part of Atomic App.
+
+ Atomic App is free software: you can redistribute it and/or modify
+ it under the terms of the GNU Lesser General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ Atomic App is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Lesser General Public License for more details.
+
+ You should have received a copy of the GNU Lesser General Public License
+ along with Atomic App. If not, see <http://www.gnu.org/licenses/>.
+"""
 import logging
 
-from atomicapp.constants import REQUIREMENT_FUNCTIONS
+from atomicapp.constants import (LOGGER_DEFAULT,
+                                 REQUIREMENT_FUNCTIONS)
 from atomicapp.plugin import Plugin
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(LOGGER_DEFAULT)
 
 
 class Requirements:
@@ -25,7 +44,6 @@ class Requirements:
 
     def __init__(self, config, basepath, graph, provider, dryrun):
         self.plugin = Plugin()
-        self.plugin.load_plugins()
 
         self.config = config
         self.basepath = basepath
@@ -44,13 +62,10 @@ class Requirements:
     def stop(self):
         self._exec("stop")
 
-    def uninstall(self):
-        self._exec("uninstall")
-
     # Find if the requirement does not exist within REQUIREMENT_FUNCTIONS
     def _find_requirement_function_name(self, key):
-        logging.debug("Checking if %s matches any of %s" %
-                      (key, REQUIREMENT_FUNCTIONS))
+        logger.debug("Checking if %s matches any of %s" %
+                     (key, REQUIREMENT_FUNCTIONS))
         if key in REQUIREMENT_FUNCTIONS.keys():
             return REQUIREMENT_FUNCTIONS[key]
         raise RequirementFailedException("Requirement %s does not exist." % key)
@@ -63,13 +78,14 @@ class Requirements:
             requirement_function = self._find_requirement_function_name(key_name)
 
             # Check to see if the function exists in the provider,
-            # if it does not: fail
+            # if it does not: warn the user
             try:
                 requirement = getattr(self.provider, requirement_function)
             except AttributeError:
-                raise RequirementFailedException(
-                    "Requirement %s does not exist within %s." %
+                logger.warning(
+                    "Requirement %s does not exist within %s. Skipping." %
                     (requirement_function, self.provider))
+                continue
 
             # Run the requirement function
             requirement(req[key_name], action)

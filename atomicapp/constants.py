@@ -1,5 +1,5 @@
 """
- Copyright 2015 Red Hat, Inc.
+ Copyright 2014-2016 Red Hat, Inc.
 
  This file is part of Atomic App.
 
@@ -23,7 +23,7 @@ Update the below LABELS if ATOMICAPPVERSION & NULECULESPECVERSION are updated:
 2) LABEL io.projectatomic.nulecule.specversion  in app Dockefile
 """
 
-__ATOMICAPPVERSION__ = '0.3.0'
+__ATOMICAPPVERSION__ = '0.6.4'
 __NULECULESPECVERSION__ = '0.0.2'
 
 EXTERNAL_APP_DIR = "external"
@@ -40,6 +40,7 @@ NAME_KEY = "name"
 DEFAULTNAME_KEY = "default"
 PROVIDER_KEY = "provider"
 NAMESPACE_KEY = "namespace"
+NAMESPACE_SEPARATOR = ":"
 REQUIREMENTS_KEY = "requirements"
 
 # Nulecule spec terminology vs the function within /providers
@@ -53,7 +54,10 @@ ANSWERS_RUNTIME_FILE = "answers.conf.gen"
 ANSWERS_FILE_SAMPLE = "answers.conf.sample"
 ANSWERS_FILE_SAMPLE_FORMAT = 'ini'
 WORKDIR = ".workdir"
-LOCK_FILE = "/run/lock/atomicapp.lock"
+
+LOGGER_DEFAULT = "atomicapp"
+LOGGER_COCKPIT = "cockpit"
+
 HOST_DIR = "/host"
 
 DEFAULT_PROVIDER = "kubernetes"
@@ -61,14 +65,29 @@ DEFAULT_CONTAINER_NAME = "atomic"
 DEFAULT_NAMESPACE = "default"
 DEFAULT_ANSWERS = {
     "general": {
-        "provider": DEFAULT_PROVIDER,
         "namespace": DEFAULT_NAMESPACE
     }
 }
 
 PROVIDERS = ["docker", "kubernetes", "openshift", "marathon"]
-PROVIDER_API_KEY = "providerapi"
-ACCESS_TOKEN_KEY = "accesstoken"
-PROVIDER_CONFIG_KEY = "providerconfig"
-PROVIDER_TLS_VERIFY_KEY = "providertlsverify"
-PROVIDER_CA_KEY = "providercafile"
+PROVIDER_API_KEY = "provider-api"
+PROVIDER_AUTH_KEY = "provider-auth"
+PROVIDER_CONFIG_KEY = "provider-config"
+PROVIDER_TLS_VERIFY_KEY = "provider-tlsverify"
+PROVIDER_CA_KEY = "provider-cafile"
+
+K8S_DEFAULT_API = "http://localhost:8080"
+OC_DEFAULT_API = "http://localhost:8443"
+
+# Persistent Storage Formats
+PERSISTENT_STORAGE_FORMAT = ["ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany"]
+
+# If running in an openshift POD via `oc new-app`, the ca file is here
+OPENSHIFT_POD_CA_FILE = "/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+
+# Index
+INDEX_IMAGE = "projectatomic/nulecule-library"
+INDEX_DEFAULT_IMAGE_LOCATION = "localhost"
+INDEX_NAME = "index.yaml"
+INDEX_LOCATION = ".atomicapp/" + INDEX_NAME
+INDEX_GEN_DEFAULT_OUTPUT_LOC = "./" + INDEX_NAME

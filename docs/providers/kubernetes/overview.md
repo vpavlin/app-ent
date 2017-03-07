@@ -28,22 +28,22 @@ section of the answers.conf file. An example is below:
 namespace: mynamespace
 ```
 
-#### providerconfig
+#### provider-config
 
-For Kubernetes the configuration file as specified by `providerconfig`
+For Kubernetes the configuration file as specified by `provider-config`
 is optional. Hosts that have kubernetes set up and running on them
-may not need a `providerconfig` to be specified because kubernetes
+may not need a `provider-config` to be specified because kubernetes
 services are listening on default ports/addresses. However, if
 kubernetes was set up to listen on different ports, or you wish to
 connect to a remote kubernetes environment, then you will need to
 specify a location for a provider config file.
 
-One example of specifying a `providerconfig` is below:
+One example of specifying a `provider-config` is below:
 
 ```
 [general]
 provider: kubernetes
-providerconfig: /host/home/foo/.kube/config
+provider-config: /home/foo/.kube/config
 ```
 
 #### Configuration Value Defaults
@@ -53,7 +53,7 @@ Table 1. Kubernetes default configuration values
 Keyword  | Required | Description                                             | Default value
 ---------|----------|---------------------------------------------------------|--------------
 namespace|   no     | namespace to use with each kubectl call                 | default
-providerconfig| no  | config file that specifies how to connect to kubernetes | none
+provider-config| no  | config file that specifies how to connect to kubernetes | none
 
 
 ### Operations

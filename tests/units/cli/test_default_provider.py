@@ -1,5 +1,5 @@
 """
- Copyright 2015 Red Hat, Inc.
+ Copyright 2014-2016 Red Hat, Inc.
 
  This file is part of Atomic App.
 
@@ -61,16 +61,16 @@ class TestCli(object):
         # Run the dry-run command
         with pytest.raises(SystemExit) as exec_info:
             self.exec_cli(command)
-        nil, out = capsys.readouterr()
+        stdout, stderr = capsys.readouterr()
 
         # Tear down and remove all those useless generated files
         self.tear_down()
 
         # Print out what we've captured just in case the test fails
-        print out
+        print stdout
 
         # Since this a Docker-only provider test, docker *should* be in it, NOT Kubernetes
-        assert "'provider': 'docker'" in out
-        assert "Deploying to Kubernetes" not in out
+        assert "provider: Docker" in stdout
+        assert "Deploying to Kubernetes" not in stdout
 
         assert exec_info.value.code == 0
