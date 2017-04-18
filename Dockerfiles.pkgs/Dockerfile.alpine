@@ -1,0 +1,29 @@
+FROM alpine
+
+MAINTAINER Red Hat, Inc. <container-tools@redhat.com>
+
+ENV ATOMICAPPVERSION="0.5.0"
+
+LABEL io.projectatomic.nulecule.atomicappversion=${ATOMICAPPVERSION} \
+      io.openshift.generate.job=true \
+      io.openshift.generate.token.as=env:TOKEN_ENV_VAR \
+      RUN="docker run -it --rm \${OPT1} --privileged -v \${PWD}:/atomicapp -v /run:/run -v /:/host --net=host --name \${NAME} -e USER -e SUDO_USER -e NAME=\${NAME} -e IMAGE=\${IMAGE} \${IMAGE} \${OPT2} run \${OPT3}" \
+      STOP="docker run -it --rm \${OPT1} --privileged -v \${PWD}:/atomicapp -v /run:/run -v /:/host --net=host --name \${NAME} -e USER -e SUDO_USER -e NAME=\${NAME} -e IMAGE=\${IMAGE} \${IMAGE} \${OPT2} stop \${OPT3}"
+
+WORKDIR /opt/atomicapp
+
+ADD requirements.txt ./
+
+RUN apk add --update \
+    python \
+    py-pip \
+    docker && \
+    pip install -r requirements.txt && \
+    apk del py-pip && \
+    rm /var/cache/apk/*
+
+WORKDIR /atomicapp
+RUN chmod 777 /atomicapp
+ENV PYTHONPATH  /opt/atomicapp/
+ENTRYPOINT ["/usr/bin/python", "/opt/atomicapp/atomicapp/cli/main.py"]
+ADD atomicapp/ /opt/atomicapp/atomicapp/
