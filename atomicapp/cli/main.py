@@ -45,8 +45,8 @@ logger = logging.getLogger(LOGGER_DEFAULT)
 def print_app_location(app_path):
     if app_path.startswith(HOST_DIR):
         app_path = app_path[len(HOST_DIR):]
-    print("\nYour application resides in %s" % app_path)
-    print("Please use this directory for managing your application\n")
+    logger.info("Your application resides in %s" % app_path)
+    logger.info("Please use this directory for managing your application")
 
 
 def cli_genanswers(args):
