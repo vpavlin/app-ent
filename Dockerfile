@@ -17,6 +17,7 @@ ADD requirements.txt ./
 
 # Install needed requirements
 RUN yum install -y epel-release && \
+    yum update -y && \
     yum install -y --setopt=tsflags=nodocs docker && \
     yum install -y --setopt=tsflags=nodocs $(sed s/^/python-/ requirements.txt) && \
     yum clean all
